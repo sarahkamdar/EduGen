@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from app.services.audio_extractor import extract_audio
 from app.services.transcription import transcribe_audio
+from app.services.text_processing import clean_text, summarize_text, extract_key_points
 from app.database.mongodb import get_database
 import os
 from pathlib import Path
@@ -22,19 +23,29 @@ async def transcribe_video(file: UploadFile = File(...)):
         audio_path = extract_audio(str(video_path))
         transcript_text = transcribe_audio(audio_path)
         
+        cleaned_text = clean_text(transcript_text)
+        summary = summarize_text(cleaned_text)
+        key_points = extract_key_points(cleaned_text)
+        
         db = get_database()
         if db is not None:
             transcripts_collection = db["transcripts"]
             transcripts_collection.insert_one({
                 "filename": file.filename,
-                "transcript": transcript_text,
+                "transcript": cleaned_text,
+                "summary": summary,
+                "key_points": key_points,
                 "created_at": datetime.utcnow()
             })
         
         os.remove(video_path)
         os.remove(audio_path)
         
-        return {"transcript": transcript_text}
+        return {
+            "transcript": cleaned_text,
+            "summary": summary,
+            "key_points": key_points
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
