@@ -1,33 +1,61 @@
-# EduGen
+# Audio Transcription API
 
-## Phase 1: Backend Skeleton Initialized
+A simple FastAPI-based audio transcription service using OpenAI Whisper.
 
-## Phase 1.2: MongoDB Integration
-MongoDB database integration added with environment variable configuration. The application connects to MongoDB on startup using the MONGODB_URI environment variable.
+## Features
+- Audio transcription from multiple formats (MP3, WAV, M4A, FLAC, OGG, AAC)
+- Video to audio extraction and transcription (MP4, AVI, MOV, MKV, FLV, WMV)
+- Powered by OpenAI Whisper for accurate speech-to-text conversion
 
-## Phase 2.1: Video to Text Pipeline
-Video transcription functionality using FFmpeg and Whisper. The system accepts video file uploads, extracts audio using FFmpeg at 16kHz mono WAV format, transcribes the audio using Whisper base model, and stores transcripts in MongoDB. The pipeline handles video to text conversion through the /video/transcribe endpoint.
+## Prerequisites
+- Python 3.8+
+- FFmpeg (for video to audio conversion)
 
-## Phase 2.2: Text Processing and Summarization
-Text processing functionality for cleaning transcripts and generating summaries. The system cleans transcribed text by removing extra whitespace and normalizing spacing, generates concise summaries using HuggingFace transformers, and extracts key points from the content. All outputs are stored in MongoDB and returned via the API.
+## Installation
 
-## Phase 2.3.1: Flashcard Generation
-Flashcard generation feature that creates educational flashcards from video content summaries and key points. The system automatically generates question-answer pairs to facilitate learning and retention. Flashcards are stored in MongoDB and included in the API response.
+1. Install Python dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-## Phase 2.3.2: Quiz Generation
-Quiz generation feature that creates multiple-choice questions for assessment purposes. The system generates MCQ-based quizzes from video content summaries and key points with four options per question and one correct answer. Quizzes are stored in MongoDB and included in the API response.
+2. Install FFmpeg:
+   - Windows: Download from https://ffmpeg.org/ and add to PATH
+   - macOS: `brew install ffmpeg`
+   - Linux: `sudo apt-get install ffmpeg`
 
-## Phase 2.3.3: PowerPoint Generation
-PowerPoint presentation generation feature that creates downloadable presentations from video content. The system generates structured slides with title, summary, and key points using python-pptx. The presentation file is saved locally and the file path is returned for download access.
+## Usage
 
-## Phase 2.4: Context-Based Chatbot
-RAG-based chatbot functionality that answers questions using video content context. The system uses HuggingFace transformers to generate answers grounded in the video transcript, summary, and key points. Questions and answers are stored in MongoDB and included in the API response when a user question is provided.
+1. Start the server:
+```bash
+cd backend
+uvicorn app.main:app --reload
+```
+
+2. Access the API at `http://localhost:8000`
+3. View API documentation at `http://localhost:8000/docs`
+
+## API Endpoint
+
+### POST /audio/transcribe
+Upload an audio or video file for transcription.
+
+**Request:**
+- Method: POST
+- Content-Type: multipart/form-data
+- Body: `file` (audio/video file)
+
+**Response:**
+```json
+{
+  "transcript": "Transcribed text from the audio...",
+  "filename": "example.mp3"
+}
+```
 
 ## Tech Stack
 - FastAPI
 - Uvicorn
-- MongoDB
-- PyMongo
+- OpenAI Whisper
 - FFmpeg
-- Whisper
-- HuggingFace Transformers
+- PyTorch
+
