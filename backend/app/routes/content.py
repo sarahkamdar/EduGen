@@ -12,6 +12,8 @@ from app.models.content import (
 )
 from app.services.content_processor import process_content
 from app.services.summary import generate_summary
+from app.services.flashcards import generate_flashcards as create_flashcards
+from app.services.quiz import generate_quiz as create_quiz
 
 router = APIRouter(prefix="/content", tags=["Content"])
 
@@ -89,9 +91,9 @@ async def generate_content_summary(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/flashcards")
-async def generate_flashcards(
+async def generate_flashcards_endpoint(
     content_id: str = Form(...),
-    flashcard_type: str = Form("standard"),
+    flashcard_type: str = Form("Concept → Definition"),
     current_user: dict = Depends(get_current_user)
 ):
     try:
@@ -103,34 +105,14 @@ async def generate_flashcards(
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        prompt = f"""Generate flashcards from the following content. Each flashcard should have one concept only. No duplicates. Return as JSON array with 'question' and 'answer' fields.
-
-Content: {content['normalized_text']}"""
-        
-        from openrouter import OpenRouter
-        import os
-        import json
-        
-        client = OpenRouter(api_key=os.getenv("OPENROUTER_API_KEY"))
-        
-        response = client.chat.completions.create(
-            model="deepseek/deepseek-r1",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        flashcards_text = response.choices[0].message.content
-        
-        try:
-            flashcards = json.loads(flashcards_text)
-        except:
-            flashcards = {"raw_response": flashcards_text}
+        flashcards = create_flashcards(content['normalized_text'], flashcard_type)
         
         output_data = GeneratedOutputCreate(
             user_id=current_user["user_id"],
             content_id=content_id,
             feature="flashcards",
             options={"flashcard_type": flashcard_type},
-            output={"flashcards": flashcards}
+            output=flashcards
         )
         
         output_id = create_generated_output(output_data)
@@ -146,11 +128,11 @@ Content: {content['normalized_text']}"""
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/quiz")
-async def generate_quiz(
+async def generate_quiz_endpoint(
     content_id: str = Form(...),
     number_of_questions: int = Form(10),
-    difficulty: str = Form("medium"),
-    mode: str = Form("practice"),
+    difficulty: str = Form("Medium"),
+    mode: str = Form("Practice"),
     current_user: dict = Depends(get_current_user)
 ):
     try:
@@ -162,27 +144,12 @@ async def generate_quiz(
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        prompt = f"""Generate a quiz with {number_of_questions} questions from the following content. Difficulty: {difficulty}. Each question must have exactly 4 options with one correct answer. Return as JSON array with 'question', 'options', and 'correct_answer' fields.
-
-Content: {content['normalized_text']}"""
-        
-        from openrouter import OpenRouter
-        import os
-        import json
-        
-        client = OpenRouter(api_key=os.getenv("OPENROUTER_API_KEY"))
-        
-        response = client.chat.completions.create(
-            model="deepseek/deepseek-r1",
-            messages=[{"role": "user", "content": prompt}]
+        quiz_data = create_quiz(
+            content['normalized_text'],
+            max_questions=number_of_questions,
+            difficulty_level=difficulty,
+            quiz_mode=mode
         )
-        
-        quiz_text = response.choices[0].message.content
-        
-        try:
-            quiz = json.loads(quiz_text)
-        except:
-            quiz = {"raw_response": quiz_text}
         
         output_data = GeneratedOutputCreate(
             user_id=current_user["user_id"],
@@ -193,14 +160,14 @@ Content: {content['normalized_text']}"""
                 "difficulty": difficulty,
                 "mode": mode
             },
-            output={"quiz": quiz}
+            output=quiz_data
         )
         
         output_id = create_generated_output(output_data)
         
         return {
             "content_id": content_id,
-            "quiz": quiz,
+            "quiz": quiz_data,
             "output_id": output_id
         }
     except HTTPException:
@@ -224,7 +191,7 @@ async def generate_presentation(
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        prompt = f"""Generate a presentation outline with maximum {max_slides} slides. Each slide should have a title and maximum 4 bullet points. No repetition. Return as JSON array with 'title' and 'bullets' fields.
+        prompt = f"""Generate presentation outline. Max {max_slides} slides. Each slide: title and max 4 bullet points. No repetition. JSON format: [{{"title": "string", "bullets": ["string"]}}]
 
 Content: {content['normalized_text']}"""
         
@@ -281,13 +248,13 @@ async def chat_with_content(
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        prompt = f"""You are an AI assistant with access to specific content. Answer the user's question based on the content provided. If the answer is not in the content, clearly state that you're using external knowledge.
+        prompt = f"""Answer question based on content. If answer not in content, state using external knowledge.
 
 Content: {content['normalized_text']}
 
-User Question: {user_question}
+Question: {user_question}
 
-Provide a clear and accurate answer."""
+Answer clearly and accurately."""
         
         from openrouter import OpenRouter
         import os

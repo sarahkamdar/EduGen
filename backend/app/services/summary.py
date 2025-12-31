@@ -14,7 +14,7 @@ def generate_summary(transcript: str, prompt_suffix: str = "Provide a comprehens
         response = client.chat.send(
             model="deepseek/deepseek-r1-0528:free",
             messages=[
-                {"role": "user", "content": f"Please summarize the following content. {prompt_suffix}\n\nContent:\n\n{transcript}"}
+                {"role": "user", "content": f"Summarize this content. {prompt_suffix}\n\nContent: {transcript}"}
             ]
         )
         
