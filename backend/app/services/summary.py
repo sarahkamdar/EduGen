@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def generate_summary(transcript: str) -> str:
+def generate_summary(transcript: str, prompt_suffix: str = "Provide a comprehensive and detailed summary.") -> str:
     """Generate summary using OpenRouter LLM."""
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
@@ -14,7 +14,7 @@ def generate_summary(transcript: str) -> str:
         response = client.chat.send(
             model="deepseek/deepseek-r1-0528:free",
             messages=[
-                {"role": "user", "content": f"Please provide a concise summary of the following transcript:\n\n{transcript}"}
+                {"role": "user", "content": f"Please summarize the following content. {prompt_suffix}\n\nContent:\n\n{transcript}"}
             ]
         )
         

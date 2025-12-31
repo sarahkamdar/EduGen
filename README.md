@@ -1,21 +1,28 @@
-# EDUGEN - Audio Transcription & Summarization API
+# EDUGEN - AI-Powered Educational Content Platform
 
-A FastAPI-based audio/video transcription and summarization service with JWT authentication, powered by OpenAI Whisper and OpenRouter LLM.
+A unified FastAPI backend for AI-powered educational content generation with JWT authentication, powered by OpenAI Whisper and OpenRouter LLM.
 
 ## Features
 - JWT-based user authentication
-- User signup and login with secure password hashing
-- Audio transcription from multiple formats (MP3, WAV, M4A, FLAC, OGG, AAC)
-- Video to audio extraction and transcription (MP4, AVI, MOV, MKV, FLV, WMV)
-- AI-powered text summarization using OpenRouter LLM (DeepSeek R1)
-- Powered by OpenAI Whisper for accurate speech-to-text conversion
-- MongoDB Atlas for user data storage
-- Health check endpoint for service monitoring
+- Unified content ingestion pipeline supporting:
+  - Video files (MP4, AVI, MOV, MKV, FLV, WMV)
+  - YouTube URLs
+  - PDF documents
+  - Plain text/topics
+- AI-powered content generation:
+  - Smart summaries (short, detailed, exam, revision)
+  - Flashcards generation
+  - Quiz generation with multiple difficulty levels
+  - Presentation outline generation
+  - Context-aware chatbot
+- User-specific content history
+- MongoDB Atlas for data storage
+- Zero code duplication architecture
 
 ## Prerequisites
 - Python 3.8+
 - FFmpeg (for video to audio conversion)
-- OpenRouter API key (for summarization feature)
+- OpenRouter API key
 - MongoDB Atlas account and connection URI
 
 ## Installation
@@ -44,13 +51,30 @@ pip install -r requirements.txt
 1. Start the server:
 ```bash
 cd backend
-# venv\Scripts\activate
 uvicorn app.main:app --reload
 ```
 
 2. Access the API at `http://localhost:8000`
 3. View API documentation at `http://localhost:8000/docs`
 4. Check service health at `http://localhost:8000/health`
+
+## Unified Content Pipeline
+
+All content flows through a single ingestion route:
+
+1. **Upload** → Accepts ONE of: video file, YouTube URL, PDF, or text
+2. **Normalize** → Converts all inputs to clean text
+3. **Store** → Saves normalized content with unique ID
+4. **Generate** → Use content ID for any AI feature
+
+### Input Types
+
+**Exactly one input per request:**
+- `file`: Video (MP4, AVI, MOV, MKV, FLV, WMV) or PDF
+- `youtube_url`: YouTube video URL
+- `text`: Plain text or topic
+
+Backend validates single input source.
 
 ## API Endpoints
 
@@ -100,7 +124,228 @@ Authenticate and receive JWT access token.
 **Errors:**
 - 401: Invalid credentials
 
-### Audio Processing Endpoints
+### Content Ingestion
+
+#### POST /content/upload
+Single entry point for all content types. Accepts one input: video file, YouTube URL, PDF, or text.
+
+**Authentication Required:** Yes
+
+**Request (Video/PDF):**
+```bash
+curl -X POST "http://localhost:8000/content/upload" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@lecture.mp4"
+```
+
+**Request (YouTube):**
+```bash
+curl -X POST "http://localhost:8000/content/upload" \
+  -H "Authorization: Bearer <token>" \
+  -F "youtube_url=https://youtube.com/watch?v=..."
+```
+
+**Request (Text):**
+```bash
+curl -X POST "http://localhost:8000/content/upload" \
+  -H "Authorization: Bearer <token>" \
+  -F "text=Explain quantum physics"
+```
+
+**Response:**
+```json
+{
+  "content_id": "unique_id",
+  "normalized_text": "Clean extracted text..."
+}
+```
+
+**Errors:**
+- 400: No input provided or multiple inputs
+- 400: Unsupported file format
+
+### AI Content Generation
+
+All AI routes require `content_id` from upload.
+
+#### POST /content/summary
+Generate summary from normalized content.
+
+**Authentication Required:** Yes
+
+**Request:**
+```bash
+curl -X POST "http://localhost:8000/content/summary" \
+  -H "Authorization: Bearer <token>" \
+  -F "content_id=unique_id" \
+  -F "summary_type=detailed"
+```
+
+**Summary Types:**
+- `short`: 3-5 sentences
+- `detailed`: Comprehensive summary
+- `exam`: Focused on exam topics
+- `revision`: Quick revision optimized
+
+**Response:**
+```json
+{
+  "content_id": "unique_id",
+  "summary": "AI-generated summary...",
+  "summary_type": "detailed",
+  "output_id": "output_id"
+}
+```
+
+#### POST /content/flashcards
+Generate flashcards with one concept per card.
+
+**Authentication Required:** Yes
+
+**Request:**
+```bash
+curl -X POST "http://localhost:8000/content/flashcards" \
+  -H "Authorization: Bearer <token>" \
+  -F "content_id=unique_id" \
+  -F "flashcard_type=standard"
+```
+
+**Response:**
+```json
+{
+  "content_id": "unique_id",
+  "flashcards": [
+    {"question": "...", "answer": "..."}
+  ],
+  "output_id": "output_id"
+}
+```
+
+#### POST /content/quiz
+Generate quiz with exactly 4 options per question.
+
+**Authentication Required:** Yes
+
+**Request:**
+```bash
+curl -X POST "http://localhost:8000/content/quiz" \
+  -H "Authorization: Bearer <token>" \
+  -F "content_id=unique_id" \
+  -F "number_of_questions=10" \
+  -F "difficulty=medium" \
+  -F "mode=practice"
+```
+
+**Parameters:**
+- `difficulty`: easy, medium, hard
+- `mode`: practice, test
+
+**Response:**
+```json
+{
+  "content_id": "unique_id",
+  "quiz": [
+    {
+      "question": "...",
+      "options": ["A", "B", "C", "D"],
+      "correct_answer": "B"
+    }
+  ],
+  "output_id": "output_id"
+}
+```
+
+#### POST /content/presentation
+Generate presentation outline with max 4 bullets per slide.
+
+**Authentication Required:** Yes
+
+**Request:**
+```bash
+curl -X POST "http://localhost:8000/content/presentation" \
+  -H "Authorization: Bearer <token>" \
+  -F "content_id=unique_id" \
+  -F "max_slides=10" \
+  -F "theme=professional"
+```
+
+**Response:**
+```json
+{
+  "content_id": "unique_id",
+  "presentation": [
+    {
+      "title": "Slide Title",
+      "bullets": ["Point 1", "Point 2", "Point 3"]
+    }
+  ],
+  "output_id": "output_id"
+}
+```
+
+#### POST /content/chat
+Context-aware chatbot using content.
+
+**Authentication Required:** Yes
+
+**Request:**
+```bash
+curl -X POST "http://localhost:8000/content/chat" \
+  -H "Authorization: Bearer <token>" \
+  -F "content_id=unique_id" \
+  -F "user_question=What is the main concept?"
+```
+
+**Response:**
+```json
+{
+  "content_id": "unique_id",
+  "question": "What is the main concept?",
+  "answer": "Based on the content...",
+  "output_id": "output_id"
+}
+```
+
+#### GET /content/history
+Get all uploaded content.
+
+**Authentication Required:** Yes
+
+**Response:**
+```json
+{
+  "history": [
+    {
+      "content_id": "unique_id",
+      "input_type": "video",
+      "created_at": "2025-12-31T10:00:00",
+      "preview": "First 200 chars..."
+    }
+  ]
+}
+```
+
+#### GET /content/{content_id}/outputs
+Get all AI-generated outputs for specific content.
+
+**Authentication Required:** Yes
+
+**Response:**
+```json
+{
+  "content_id": "unique_id",
+  "outputs": [
+    {
+      "output_id": "output_id",
+      "feature": "summary",
+      "options": {"summary_type": "detailed"},
+      "created_at": "2025-12-31T10:05:00"
+    }
+  ]
+}
+```
+
+### Health Check
 
 ### GET /health
 Check if the service is running.
@@ -112,50 +357,42 @@ Check if the service is running.
 }
 ```
 
-### POST /audio/transcribe
-Upload an audio or video file for transcription.
-
-**Request:**
-- Method: POST
-- Content-Type: multipart/form-data
-- Body: `file` (audio/video file)
-
-**Response:**
-```json
-{
-  "transcript": "Transcribed text from the audio...",
-  "filename": "example.mp3"
-}
-```
-
-### POST /audio/transcribe-and-summarize
-Upload an audio or video file for transcription and AI-powered summarization.
-
-**Request:**
-- Method: POST
-- Content-Type: multipart/form-data
-- Body: `file` (audio/video file)
-
-**Response:**
-```json
-{
-  "transcript": "Full transcribed text from the audio...",
-  "summary": "AI-generated concise summary of the transcript...",
-  "filename": "example.mp3"
-}
-```
-
 ## Tech Stack
 - FastAPI
-- Uvicorn
-- OpenAI Whisper (base model)
-- OpenRouter API (DeepSeek R1)
-- FFmpeg
-- PyTorch
-- Python-dotenv
-- MongoDB Atlas
+- OpenAI Whisper (transcription)
+- OpenRouter API (DeepSeek R1 for all AI generation)
+- FFmpeg (video processing)
+- yt-dlp (YouTube downloads)
+- PyPDF2 (PDF extraction)
+- MongoDB Atlas (data storage)
 - JWT (python-jose)
-- bcrypt
+- bcrypt (password hashing)
+
+## Database Schema
+
+### content collection
+```json
+{
+  "_id": "ObjectId",
+  "user_id": "string",
+  "input_type": "video | youtube | pdf | text",
+  "normalized_text": "string",
+  "created_at": "datetime"
+}
+```
+
+### generated_outputs collection
+```json
+{
+  "_id": "ObjectId",
+  "user_id": "string",
+  "content_id": "string",
+  "feature": "summary | quiz | flashcards | presentation | chat",
+  "options": "object",
+  "output": "object",
+  "created_at": "datetime"
+}
+```
 
 ## Authentication Flow
 
@@ -163,25 +400,46 @@ Upload an audio or video file for transcription and AI-powered summarization.
 
 2. **User Login**: Users authenticate with email and password. Upon successful login, a JWT access token is issued.
 
-3. **Protected Routes**: Future endpoints (transcription, summarization, history, chatbot) will require authentication using the JWT token.
+3. **Protected Routes**: All content processing endpoints require authentication using the JWT token.
 
-4. **Token Usage**: Include the JWT token in the Authorization header for protected endpoints:
+4. **Token Usage**: Include the JWT token in the Authorization header:
    ```
    Authorization: Bearer <your_access_token>
    ```
 
+## Architecture
+
+**Unified Pipeline:**
+1. Single ingestion route (`/content/upload`)
+2. Normalization service converts all inputs to text
+3. Content stored with unique ID
+4. All AI features use stored content (no re-processing)
+
+**Key Principles:**
+- Zero code duplication
+- Single source of truth for content
+- Reusable services for all operations
+- Model-agnostic backend (all AI via OpenRouter)
+- Clean separation: routes orchestrate, services implement
+- User ownership validation on all resources
+
+**Content Flow:**
+```
+Input (video/YouTube/PDF/text)
+  ↓
+Normalize to clean text
+  ↓
+Store in MongoDB
+  ↓
+Generate AI features (summary/quiz/flashcards/PPT/chat)
+  ↓
+Store outputs with references
+```
+
 ## Security Features
 - Passwords hashed with bcrypt
 - JWT-based stateless authentication
-- Token expiration (configurable, default 30 minutes)
+- Token expiration (default 30 minutes)
 - Case-insensitive email validation
-- Secure credential verification
-
-## Future Integration
-The authentication system is designed to support:
-- User-specific transcription history
-- AI conversation memory per user
-- Personalized summarization settings
-- Side-panel history tracking
-
-These features will be implemented in subsequent phases.
+- User ownership validation for all resources
+- Single input validation per request

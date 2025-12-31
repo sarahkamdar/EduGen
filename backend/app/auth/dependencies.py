@@ -3,7 +3,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.auth.jwt import verify_token
 from app.models.user import get_user_by_id
 
-security = HTTPBearer()
+security = HTTPBearer(
+    scheme_name="JWT Bearer",
+    description="Enter your JWT token (without 'Bearer' prefix)"
+)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
