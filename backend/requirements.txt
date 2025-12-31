@@ -6,3 +6,6 @@ torch==2.9.1
 numpy==2.3.5
 openrouter
 python-dotenv
+pymongo
+bcrypt
+python-jose[cryptography]
