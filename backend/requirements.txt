@@ -10,4 +10,5 @@ pymongo
 bcrypt
 python-jose[cryptography]
 yt-dlp
-PyPDF2
+pypdf
+python-docx

@@ -8,6 +8,7 @@ A unified FastAPI backend for AI-powered educational content generation with JWT
   - Video files (MP4, AVI, MOV, MKV, FLV, WMV)
   - YouTube URLs
   - PDF documents
+  - Word documents (DOCX, DOC)
   - Plain text/topics
 - AI-powered content generation:
   - Smart summaries (short, detailed, exam, revision)
@@ -70,7 +71,7 @@ All content flows through a single ingestion route:
 ### Input Types
 
 **Exactly one input per request:**
-- `file`: Video (MP4, AVI, MOV, MKV, FLV, WMV) or PDF
+- `file`: Video (MP4, AVI, MOV, MKV, FLV, WMV), PDF, or Word document (DOCX, DOC)
 - `youtube_url`: YouTube video URL
 - `text`: Plain text or topic
 
@@ -363,7 +364,8 @@ Check if the service is running.
 - OpenRouter API (DeepSeek R1 for all AI generation)
 - FFmpeg (video processing)
 - yt-dlp (YouTube downloads)
-- PyPDF2 (PDF extraction)
+- pypdf (PDF extraction)
+- python-docx (Word document extraction)
 - MongoDB Atlas (data storage)
 - JWT (python-jose)
 - bcrypt (password hashing)
@@ -375,7 +377,7 @@ Check if the service is running.
 {
   "_id": "ObjectId",
   "user_id": "string",
-  "input_type": "video | youtube | pdf | text",
+  "input_type": "video | youtube | pdf | word | text",
   "normalized_text": "string",
   "created_at": "datetime"
 }

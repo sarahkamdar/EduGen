@@ -14,6 +14,8 @@ from app.services.content_processor import process_content
 from app.services.summary import generate_summary
 from app.services.flashcards import generate_flashcards as create_flashcards
 from app.services.quiz import generate_quiz as create_quiz
+from app.services.quiz_evaluator import evaluate_quiz
+from app.models.quiz_attempt import QuizEvaluationRequest, QuizAttemptCreate, create_quiz_attempt
 
 router = APIRouter(prefix="/content", tags=["Content"])
 
@@ -337,3 +339,65 @@ async def get_content_outputs(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/quiz/evaluate")
+async def evaluate_quiz_attempt(
+    quiz_id: str = Form(...),
+    content_id: str = Form(...),
+    mode: str = Form(...),
+    responses: str = Form(...),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        import json
+        
+        if mode not in ["practice", "test"]:
+            raise HTTPException(status_code=400, detail="Mode must be 'practice' or 'test'")
+        
+        try:
+            user_responses = json.loads(responses)
+        except:
+            raise HTTPException(status_code=400, detail="Responses must be valid JSON array")
+        
+        output = get_content_by_id(quiz_id)
+        if not output:
+            raise HTTPException(status_code=404, detail="Quiz not found")
+        
+        if output["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        quiz_content = output.get("normalized_text")
+        if isinstance(quiz_content, str):
+            try:
+                quiz_content = json.loads(quiz_content)
+            except:
+                raise HTTPException(status_code=400, detail="Invalid quiz format")
+        
+        evaluation_result = evaluate_quiz(
+            quiz_content=quiz_content,
+            user_responses=user_responses,
+            mode=mode,
+            user_id=current_user["user_id"],
+            quiz_id=quiz_id
+        )
+        
+        attempt_data = QuizAttemptCreate(
+            user_id=current_user["user_id"],
+            quiz_id=quiz_id,
+            content_id=content_id,
+            responses=user_responses,
+            score=evaluation_result["score"],
+            percentage=evaluation_result["percentage"],
+            mode=mode
+        )
+        
+        attempt_id = create_quiz_attempt(attempt_data)
+        evaluation_result["attempt_id"] = attempt_id
+        
+        return evaluation_result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

@@ -52,7 +52,7 @@ async def normalize_youtube(youtube_url: str) -> str:
 
 async def normalize_pdf(file: UploadFile) -> str:
     try:
-        import PyPDF2
+        from pypdf import PdfReader
         
         temp_dir = Path("temp")
         temp_dir.mkdir(exist_ok=True)
@@ -62,19 +62,61 @@ async def normalize_pdf(file: UploadFile) -> str:
             f.write(await file.read())
         
         text = ""
-        with open(file_path, "rb") as pdf_file:
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
+        try:
+            pdf_reader = PdfReader(file_path)
             for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
-        
-        os.remove(file_path)
+                extracted = page.extract_text()
+                if extracted:
+                    text += extracted + "\n"
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
         
         if not text.strip():
-            raise HTTPException(status_code=400, detail="No text extracted from PDF")
+            raise HTTPException(status_code=400, detail="No readable text found in PDF. It may be scanned or image-based.")
         
         return clean_text(text)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"PDF processing failed: {str(e)}")
+
+async def normalize_word(file: UploadFile) -> str:
+    try:
+        from docx import Document
+        
+        temp_dir = Path("temp")
+        temp_dir.mkdir(exist_ok=True)
+        
+        file_path = temp_dir / file.filename
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+        
+        text = ""
+        try:
+            doc = Document(file_path)
+            for paragraph in doc.paragraphs:
+                if paragraph.text.strip():
+                    text += paragraph.text + "\n"
+            
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        if cell.text.strip():
+                            text += cell.text + " "
+                    text += "\n"
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        if not text.strip():
+            raise HTTPException(status_code=400, detail="No readable text found in Word document.")
+        
+        return clean_text(text)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Word document processing failed: {str(e)}")
 
 def normalize_text(text: str) -> str:
     return clean_text(text)
@@ -102,6 +144,7 @@ async def process_content(
         
         video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
         pdf_extensions = ['.pdf']
+        word_extensions = ['.docx', '.doc']
         
         if file_ext in video_extensions:
             normalized_text = await normalize_video(file)
@@ -109,6 +152,9 @@ async def process_content(
         elif file_ext in pdf_extensions:
             normalized_text = await normalize_pdf(file)
             input_type = "pdf"
+        elif file_ext in word_extensions:
+            normalized_text = await normalize_word(file)
+            input_type = "word"
         else:
             raise HTTPException(status_code=400, detail="Unsupported file format")
     
