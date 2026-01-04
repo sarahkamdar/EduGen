@@ -1,6 +1,8 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
 from typing import Optional
+from bson import ObjectId
 from app.auth.dependencies import get_current_user
+from app.database.connection import get_database
 from app.models.content import (
     ContentCreate,
     GeneratedOutputCreate,
@@ -170,6 +172,7 @@ async def generate_quiz_endpoint(
         return {
             "content_id": content_id,
             "quiz": quiz_data,
+            "mode": mode,
             "output_id": output_id
         }
     except HTTPException:
@@ -331,6 +334,7 @@ async def get_content_outputs(
                 "output_id": str(o["_id"]),
                 "feature": o["feature"],
                 "options": o["options"],
+                "score": o.get("score"),  # Include quiz score if available
                 "created_at": o["created_at"]
             })
         
@@ -401,3 +405,137 @@ async def evaluate_quiz_attempt(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/output/{output_id}")
+async def get_output_by_id(
+    output_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        db = get_database()
+        generated_outputs = db.generated_outputs
+        
+        output = generated_outputs.find_one({"_id": ObjectId(output_id)})
+        
+        if not output:
+            raise HTTPException(status_code=404, detail="Output not found")
+        
+        if output["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        return {
+            "output_id": str(output["_id"]),
+            "content_id": output["content_id"],
+            "feature": output["feature"],
+            "options": output["options"],
+            "output": output["output"],
+            "score": output.get("score"),  # Quiz score if available            "user_answers": output.get("user_answers"),  # User answers for test mode            "created_at": output["created_at"]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/output/{output_id}/score")
+async def update_output_score(
+    output_id: str,
+    score: int = Form(...),
+    total: int = Form(...),
+    percentage: int = Form(...),
+    user_answers: str = Form(None),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        db = get_database()
+        generated_outputs = db.generated_outputs
+        
+        output = generated_outputs.find_one({"_id": ObjectId(output_id)})
+        
+        if not output:
+            raise HTTPException(status_code=404, detail="Output not found")
+        
+        if output["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Prepare update data
+        update_data = {"score": {"correct": score, "total": total, "percentage": percentage}}
+        
+        # If user_answers provided (test mode), parse and store them
+        if user_answers:
+            import json
+            try:
+                answers_dict = json.loads(user_answers)
+                update_data["user_answers"] = answers_dict
+            except json.JSONDecodeError:
+                pass  # Skip if invalid JSON
+        
+        # Update score and user answers
+        generated_outputs.update_one(
+            {"_id": ObjectId(output_id)},
+            {"$set": update_data}
+        )
+        
+        return {"success": True, "output_id": output_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/output/{output_id}")
+async def delete_output(
+    output_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        db = get_database()
+        generated_outputs = db.generated_outputs
+        
+        output = generated_outputs.find_one({"_id": ObjectId(output_id)})
+        
+        if not output:
+            raise HTTPException(status_code=404, detail="Output not found")
+        
+        if output["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Delete the output
+        generated_outputs.delete_one({"_id": ObjectId(output_id)})
+        
+        return {"success": True, "message": "Output deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{content_id}")
+async def delete_content(
+    content_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        db = get_database()
+        content_collection = db.content
+        generated_outputs = db.generated_outputs
+        quiz_attempts = db.quiz_attempts
+        
+        content = content_collection.find_one({"_id": ObjectId(content_id)})
+        
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        if content["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Delete all related outputs
+        generated_outputs.delete_many({"content_id": content_id})
+        
+        # Delete all related quiz attempts
+        quiz_attempts.delete_many({"content_id": content_id})
+        
+        # Delete the content itself
+        content_collection.delete_one({"_id": ObjectId(content_id)})
+        
+        return {"success": True, "message": "Content and all related data deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
