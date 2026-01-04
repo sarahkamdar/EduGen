@@ -492,6 +492,14 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           'Your content may contain sensitive information',
           'Try uploading different content'
         ]
+      } else if (rawResponse.includes('cut off') || rawResponse.includes('truncated') || rawResponse.includes('incomplete')) {
+        errorTitle = '📏 Response Incomplete'
+        errorMessage = 'The AI response was cut off mid-generation.'
+        errorSuggestions = [
+          'Reduce the number of questions (try 5-7 instead of 10)',
+          'Upload a shorter document or text',
+          'The free API has token limits that were exceeded'
+        ]
       } else if (rawResponse.includes('length')) {
         errorTitle = '📏 Content Too Long'
         errorMessage = 'The response was truncated due to length.'
@@ -503,6 +511,14 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
       } else if (rawResponse.includes('Error:')) {
         errorTitle = '❌ API Error'
         errorMessage = rawResponse
+      } else if (rawResponse.includes('parse') || rawResponse.includes('malformed')) {
+        errorTitle = '⚙️ Parsing Error'
+        errorMessage = 'Failed to process the AI response.'
+        errorSuggestions = [
+          'Try generating again with fewer questions',
+          'The response may have been incomplete',
+          'Try with simpler content or shorter text'
+        ]
       }
       
       return (
@@ -562,16 +578,92 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
 
     const score = showResults ? calculateScore() : null
 
+    // Practice Mode: Display all questions with answers and explanations directly
+    if (!isTestMode) {
+      return (
+        <div className="space-y-4">
+          {/* Mode badge */}
+          <div className="flex items-center justify-between">
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border-2 border-blue-300">
+              📚 Practice Mode - Study Guide
+            </span>
+            <span className="text-xs text-slate-500 font-medium">
+              {quiz.length} Questions
+            </span>
+          </div>
+
+          {/* Questions with answers shown */}
+          <div className="space-y-4">
+            {quiz.map((question, qIndex) => (
+              <div
+                key={question.id}
+                className="bg-white border-2 border-slate-200 rounded-xl p-5"
+              >
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm bg-slate-100 text-slate-700">
+                    {qIndex + 1}
+                  </div>
+                  <div className="flex-1 text-sm font-semibold text-slate-900 leading-relaxed">
+                    {formatText(question.question)}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {Object.entries(question.options).map(([key, value]) => {
+                    const isCorrectOption = question.correct_answer === key
+                    
+                    return (
+                      <div
+                        key={key}
+                        className={`w-full text-left px-4 py-3 rounded-lg border-2 text-sm ${
+                          isCorrectOption
+                            ? 'border-green-400 bg-green-50'
+                            : 'border-slate-200 bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                            isCorrectOption
+                              ? 'border-green-500 bg-green-500 text-white'
+                              : 'border-slate-300 text-slate-600'
+                          }`}>
+                            {key}
+                          </span>
+                          <div className="text-slate-800 flex-1">
+                            {formatText(value)}
+                          </div>
+                          {isCorrectOption && (
+                            <span className="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Show explanation if available */}
+                {question.explanation && question.explanation.trim() !== '' && (
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs font-semibold text-blue-900 mb-1.5">💡 Explanation:</p>
+                    <div className="text-xs text-blue-800">
+                      {formatText(question.explanation)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    // Test Mode: Interactive quiz with user selection and evaluation
     return (
       <div className="space-y-4">
         {/* Mode badge */}
         <div className="flex items-center justify-between">
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-            isTestMode 
-              ? 'bg-red-100 text-red-700 border-2 border-red-300'
-              : 'bg-blue-100 text-blue-700 border-2 border-blue-300'
-          }`}>
-            {isTestMode ? '📝 Test Mode' : '📚 Practice Mode'}
+          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border-2 border-red-300">
+            📝 Test Mode
           </span>
           {showResults && (
             <span className="text-xs text-slate-500 font-medium">
@@ -592,16 +684,14 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
                 <span className="text-3xl font-bold text-white">{score.percentage}%</span>
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-1">
-                {isTestMode ? 'Test Completed!' : 'Quiz Completed!'}
+                Test Completed!
               </h3>
               <p className="text-sm text-slate-600">
                 You got {score.correct} out of {score.total} questions correct
               </p>
-              {isTestMode && (
-                <p className="text-xs text-slate-500 mt-2">
-                  Grade: {score.percentage >= 90 ? 'A' : score.percentage >= 80 ? 'B' : score.percentage >= 70 ? 'C' : score.percentage >= 60 ? 'D' : 'F'}
-                </p>
-              )}
+              <p className="text-xs text-slate-500 mt-2">
+                Grade: {score.percentage >= 90 ? 'A' : score.percentage >= 80 ? 'B' : score.percentage >= 70 ? 'C' : score.percentage >= 60 ? 'D' : 'F'}
+              </p>
             </div>
           </div>
         )}
@@ -683,18 +773,8 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
                   })}
                 </div>
 
-                {/* Practice mode: Show explanation after submission */}
-                {showResults && !isTestMode && question.explanation && question.explanation.trim() !== '' && (
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs font-semibold text-blue-900 mb-1.5">Explanation:</p>
-                    <div className="text-xs text-blue-800">
-                      {formatText(question.explanation)}
-                    </div>
-                  </div>
-                )}
-                
                 {/* Test mode: Show what was wrong */}
-                {showResults && isTestMode && !isCorrect && (
+                {showResults && !isCorrect && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                     <p className="text-xs font-semibold text-red-900 mb-1.5">Incorrect!</p>
                     <p className="text-xs text-red-800">
@@ -716,7 +796,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
         {/* Submit button */}
         {!showResults && (
           <div className="space-y-2">
-            {isTestMode && Object.keys(userAnswers).length === quiz.length && (
+            {Object.keys(userAnswers).length === quiz.length && (
               <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
                 <p className="text-xs text-yellow-800 font-semibold mb-1">⚠️ Ready to Submit Test?</p>
                 <p className="text-xs text-yellow-700">You won't be able to change your answers after submission.</p>
@@ -728,7 +808,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
               className={`w-full px-4 py-3 bg-gradient-to-r ${colors.button} text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm`}
             >
               {Object.keys(userAnswers).length === quiz.length
-                ? isTestMode ? '📝 Submit Test' : '✓ Submit Quiz'
+                ? '📝 Submit Test'
                 : `Answer All Questions (${Object.keys(userAnswers).length}/${quiz.length})`
               }
             </button>
@@ -744,7 +824,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
             }}
             className={`w-full px-4 py-3 bg-gradient-to-r ${colors.button} text-white rounded-lg font-semibold transition-all text-sm`}
           >
-            {isTestMode ? '🔄 Retake Test' : '🔄 Restart Quiz'}
+            🔄 Retake Test
           </button>
         )}
       </div>

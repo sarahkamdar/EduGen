@@ -4,6 +4,7 @@ function ChatbotUI({ contentId, disabled = false }) {
   const [messages, setMessages] = useState([])
   const [inputMessage, setInputMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [error, setError] = useState('')
   const messagesEndRef = useRef(null)
 
   const scrollToBottom = () => {
@@ -14,9 +15,9 @@ function ChatbotUI({ contentId, disabled = false }) {
     scrollToBottom()
   }, [messages])
 
-  // Welcome message when content is ready
+  // Reset messages when contentId changes
   useEffect(() => {
-    if (contentId && messages.length === 0) {
+    if (contentId) {
       setMessages([
         {
           id: 1,
@@ -25,11 +26,65 @@ function ChatbotUI({ contentId, disabled = false }) {
           timestamp: new Date()
         }
       ])
+      setError('')
     }
   }, [contentId])
 
-  const handleSend = () => {
-    if (!inputMessage.trim() || disabled) return
+  // Format markdown-style text for display
+  const formatMessage = (text) => {
+    // Split by lines
+    const lines = text.split('\n')
+    
+    return lines.map((line, index) => {
+      // Handle bold text **text**
+      let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
+      
+      // Handle bullet points starting with - or •
+      if (line.trim().startsWith('- ') || line.trim().startsWith('• ')) {
+        const content = line.trim().substring(2)
+        return (
+          <div key={index} className="flex gap-2 ml-2 mb-1">
+            <span className="text-indigo-600 mt-0.5">•</span>
+            <span dangerouslySetInnerHTML={{ __html: content.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>') }} />
+          </div>
+        )
+      }
+      
+      // Handle numbered lists
+      const numberedMatch = line.trim().match(/^(\d+)\.\s+(.+)/)
+      if (numberedMatch) {
+        return (
+          <div key={index} className="flex gap-2 ml-2 mb-1">
+            <span className="text-indigo-600 font-semibold">{numberedMatch[1]}.</span>
+            <span dangerouslySetInnerHTML={{ __html: numberedMatch[2].replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>') }} />
+          </div>
+        )
+      }
+      
+      // Handle code blocks with backticks
+      if (line.trim().startsWith('`') && line.trim().endsWith('`')) {
+        const code = line.trim().slice(1, -1)
+        return (
+          <div key={index} className="bg-slate-100 px-2 py-1 rounded text-xs font-mono my-1">
+            {code}
+          </div>
+        )
+      }
+      
+      // Regular text
+      if (line.trim()) {
+        return (
+          <div key={index} className="mb-1" dangerouslySetInnerHTML={{ __html: formattedLine }} />
+        )
+      }
+      
+      // Empty line
+      return <div key={index} className="h-1" />
+    })
+  }
+
+  const handleSend = async () => {
+    if (!inputMessage.trim() || disabled || isTyping) return
 
     const userMessage = {
       id: messages.length + 1,
@@ -38,21 +93,74 @@ function ChatbotUI({ contentId, disabled = false }) {
       timestamp: new Date()
     }
 
-    setMessages([...messages, userMessage])
+    const updatedMessages = [...messages, userMessage]
+    setMessages(updatedMessages)
     setInputMessage('')
     setIsTyping(true)
+    setError('')
 
-    // Simulate AI response (placeholder - no actual logic)
-    setTimeout(() => {
+    try {
+      const token = localStorage.getItem('token')
+      
+      if (!token) {
+        throw new Error('Not authenticated. Please log in again.')
+      }
+      
+      // Prepare chat history (last 10 messages, exclude welcome message)
+      const chatHistory = updatedMessages
+        .slice(1, -1) // Exclude welcome and current message
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        }))
+
+      const formData = new FormData()
+      formData.append('content_id', contentId)
+      formData.append('question', userMessage.text)
+      if (chatHistory.length > 0) {
+        formData.append('chat_history', JSON.stringify(chatHistory))
+      }
+
+      const response = await fetch('/content/chat', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Session expired. Please log in again.')
+        }
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
+        throw new Error(errorData.detail || 'Failed to get response')
+      }
+
+      const data = await response.json()
+
       const aiMessage = {
-        id: messages.length + 2,
+        id: updatedMessages.length + 1,
         sender: 'ai',
-        text: "I'm currently under development. Soon I'll be able to answer your questions based on the uploaded content!",
+        text: data.answer,
         timestamp: new Date()
       }
-      setMessages(prev => [...prev, aiMessage])
+
+      setMessages([...updatedMessages, aiMessage])
+    } catch (err) {
+      console.error('Chatbot error:', err)
+      setError(err.message)
+      const errorMessage = {
+        id: updatedMessages.length + 1,
+        sender: 'ai',
+        text: `Error: ${err.message}`,
+        timestamp: new Date(),
+        isError: true
+      }
+      setMessages([...updatedMessages, errorMessage])
+    } finally {
       setIsTyping(false)
-    }, 1500)
+    }
   }
 
   const handleKeyPress = (e) => {
@@ -145,7 +253,7 @@ function ChatbotUI({ contentId, disabled = false }) {
                   } rounded-2xl px-4 py-2.5 shadow-md`}
                 >
                   {message.sender === 'ai' && (
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-2">
                       <div className="w-5 h-5 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center">
                         <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -154,9 +262,11 @@ function ChatbotUI({ contentId, disabled = false }) {
                       <span className="text-xs font-semibold text-indigo-600">AI Assistant</span>
                     </div>
                   )}
-                  <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                  <div className="text-sm">
+                    {message.sender === 'ai' ? formatMessage(message.text) : message.text}
+                  </div>
                   <p
-                    className={`text-[10px] mt-1 ${
+                    className={`text-[10px] mt-2 ${
                       message.sender === 'user' ? 'text-white/70' : 'text-slate-500'
                     }`}
                   >

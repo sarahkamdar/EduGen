@@ -284,7 +284,7 @@ function DashboardLayout() {
     }))
     setUi(prev => ({
       ...prev,
-      activeAction: null,
+      activeAction: prev.activeAction === 'chatbot' ? 'chatbot' : null,
       isProcessing: false
     }))
     setResult({
@@ -354,9 +354,31 @@ function DashboardLayout() {
 
       const data = await response.json()
 
+      // Normalize the data structure for historical outputs
+      // Historical data comes wrapped in { output: { ... } }
+      // Fresh data comes directly as { quiz: [...], summary: "...", etc. }
+      let normalizedData = { ...data }
+      
+      if (data.output) {
+        // Unwrap the output field and merge with top-level data
+        normalizedData = {
+          ...data,
+          ...data.output,
+          output_id: data.output_id,
+          content_id: data.content_id,
+          feature: data.feature,
+          options: data.options
+        }
+        
+        // For quiz, ensure mode is preserved from options
+        if (feature === 'quiz' && data.options && data.options.mode) {
+          normalizedData.mode = data.options.mode
+        }
+      }
+
       // Set the result and activate the corresponding action
       setResult({
-        data: data,
+        data: normalizedData,
         action: feature
       })
       setUi(prev => ({

@@ -17,6 +17,7 @@ from app.services.summary import generate_summary
 from app.services.flashcards import generate_flashcards as create_flashcards
 from app.services.quiz import generate_quiz as create_quiz
 from app.services.quiz_evaluator import evaluate_quiz
+from app.services.chatbot import chat_with_content as chatbot_service
 from app.models.quiz_attempt import QuizEvaluationRequest, QuizAttemptCreate, create_quiz_attempt
 
 router = APIRouter(prefix="/content", tags=["Content"])
@@ -239,12 +240,15 @@ Content: {content['normalized_text']}"""
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chat")
-async def chat_with_content(
+async def chat_with_content_endpoint(
     content_id: str = Form(...),
-    user_question: str = Form(...),
+    question: str = Form(...),
+    chat_history: str = Form(None),
     current_user: dict = Depends(get_current_user)
 ):
     try:
+        import json
+        
         content = get_content_by_id(content_id)
         
         if not content:
@@ -253,41 +257,25 @@ async def chat_with_content(
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        prompt = f"""Answer question based on content. If answer not in content, state using external knowledge.
-
-Content: {content['normalized_text']}
-
-Question: {user_question}
-
-Answer clearly and accurately."""
+        # Parse chat history if provided
+        history = None
+        if chat_history:
+            try:
+                history = json.loads(chat_history)
+            except:
+                history = None
         
-        from openrouter import OpenRouter
-        import os
-        
-        client = OpenRouter(api_key=os.getenv("OPENROUTER_API_KEY"))
-        
-        response = client.chat.completions.create(
-            model="deepseek/deepseek-r1",
-            messages=[{"role": "user", "content": prompt}]
+        # Get AI response
+        answer = chatbot_service(
+            normalized_text=content['normalized_text'],
+            question=question,
+            chat_history=history
         )
-        
-        answer = response.choices[0].message.content
-        
-        output_data = GeneratedOutputCreate(
-            user_id=current_user["user_id"],
-            content_id=content_id,
-            feature="chat",
-            options={"user_question": user_question},
-            output={"answer": answer}
-        )
-        
-        output_id = create_generated_output(output_data)
         
         return {
             "content_id": content_id,
-            "question": user_question,
-            "answer": answer,
-            "output_id": output_id
+            "question": question,
+            "answer": answer
         }
     except HTTPException:
         raise
