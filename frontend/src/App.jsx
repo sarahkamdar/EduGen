@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from 'react'
+import HomePage from './components/landing/HomePage'
 import AuthLayout from './components/auth/AuthLayout'
 import DashboardLayout from './components/dashboard/DashboardLayout'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [showAuth, setShowAuth] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    setIsAuthenticated(!!token)
+    if (token) {
+      setIsAuthenticated(true)
+      setShowAuth(false)
+    }
     setLoading(false)
   }, [])
+
+  const handleNavigateToAuth = () => {
+    setShowAuth(true)
+  }
 
   if (loading) {
     return (
@@ -23,7 +32,15 @@ function App() {
     )
   }
 
-  return isAuthenticated ? <DashboardLayout /> : <AuthLayout />
+  if (isAuthenticated) {
+    return <DashboardLayout />
+  }
+
+  if (showAuth) {
+    return <AuthLayout />
+  }
+
+  return <HomePage onNavigateToAuth={handleNavigateToAuth} />
 }
 
 export default App
