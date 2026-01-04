@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 
-function ChatbotUI({ contentId, disabled = false }) {
+function ChatbotUI({ contentId, disabled = false, historicalConversation = null }) {
   const [messages, setMessages] = useState([])
   const [inputMessage, setInputMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -15,9 +15,23 @@ function ChatbotUI({ contentId, disabled = false }) {
     scrollToBottom()
   }, [messages])
 
-  // Reset messages when contentId changes
+  // Load historical conversation when provided
   useEffect(() => {
-    if (contentId) {
+    if (historicalConversation && historicalConversation.output && historicalConversation.output.conversation) {
+      const conversation = historicalConversation.output.conversation
+      const formattedMessages = conversation.map((msg, index) => ({
+        id: index + 1,
+        sender: msg.sender,
+        text: msg.text,
+        timestamp: new Date()
+      }))
+      setMessages(formattedMessages)
+    }
+  }, [historicalConversation])
+
+  // Reset messages when contentId changes (but not if loading historical conversation)
+  useEffect(() => {
+    if (contentId && !historicalConversation) {
       setMessages([
         {
           id: 1,
@@ -28,14 +42,22 @@ function ChatbotUI({ contentId, disabled = false }) {
       ])
       setError('')
     }
-  }, [contentId])
+  }, [contentId, historicalConversation])
 
   // Format markdown-style text for display
   const formatMessage = (text) => {
+    // Remove markdown headers (# symbols at start of lines)
+    text = text.replace(/^#{1,6}\s+/gm, '')
+    
     // Split by lines
     const lines = text.split('\n')
     
     return lines.map((line, index) => {
+      // Skip lines that are just punctuation or special characters
+      if (line.trim().match(/^[#*\-_=]+$/)) {
+        return null
+      }
+      
       // Handle bold text **text**
       let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
       
@@ -80,7 +102,7 @@ function ChatbotUI({ contentId, disabled = false }) {
       
       // Empty line
       return <div key={index} className="h-1" />
-    })
+    }).filter(Boolean) // Remove null entries
   }
 
   const handleSend = async () => {

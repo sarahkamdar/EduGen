@@ -10,7 +10,9 @@ from app.models.content import (
     get_content_by_id,
     get_user_content,
     create_generated_output,
-    get_generated_outputs
+    get_generated_outputs,
+    update_generated_output,
+    get_or_create_chatbot_output
 )
 from app.services.content_processor import process_content
 from app.services.summary import generate_summary
@@ -32,10 +34,25 @@ async def upload_content(
     try:
         input_type, normalized_text = await process_content(file, youtube_url, text)
         
+        # Generate meaningful title
+        title = None
+        if file:
+            # Use filename without extension
+            title = file.filename.rsplit('.', 1)[0][:100] if file.filename else f"{input_type.capitalize()} Document"
+        elif youtube_url:
+            title = "YouTube Video"
+        elif text:
+            # Use first 50 chars of text as title
+            title = text[:50].strip() + ("..." if len(text) > 50 else "")
+        
+        if not title:
+            title = f"{input_type.capitalize()} Content"
+        
         content_data = ContentCreate(
             user_id=current_user["user_id"],
             input_type=input_type,
-            normalized_text=normalized_text
+            normalized_text=normalized_text,
+            title=title
         )
         
         content_id = create_content(content_data)
@@ -258,12 +275,18 @@ async def chat_with_content_endpoint(
             raise HTTPException(status_code=403, detail="Access denied")
         
         # Parse chat history if provided
-        history = None
+        history = []
         if chat_history:
             try:
-                history = json.loads(chat_history)
+                parsed_history = json.loads(chat_history)
+                # Convert from frontend format (sender/text) to API format (role/content)
+                for msg in parsed_history:
+                    if msg.get('sender') == 'user':
+                        history.append({"role": "user", "content": msg.get('text', '')})
+                    elif msg.get('sender') == 'ai':
+                        history.append({"role": "assistant", "content": msg.get('text', '')})
             except:
-                history = None
+                history = []
         
         # Get AI response
         answer = chatbot_service(
@@ -272,10 +295,35 @@ async def chat_with_content_endpoint(
             chat_history=history
         )
         
+        # Get or create chatbot conversation for this content
+        output_id = get_or_create_chatbot_output(content_id, current_user["user_id"])
+        
+        # Build full conversation history
+        full_conversation = []
+        
+        # Add all previous messages from history if exists
+        if chat_history:
+            try:
+                parsed_history = json.loads(chat_history)
+                full_conversation = parsed_history if isinstance(parsed_history, list) else []
+            except:
+                full_conversation = []
+        
+        # Add the new question and answer
+        full_conversation.append({"sender": "user", "text": question})
+        full_conversation.append({"sender": "ai", "text": answer})
+        
+        # Update the existing conversation
+        update_generated_output(output_id, {
+            "output": {"conversation": full_conversation},
+            "options": {"message_count": len(full_conversation)}
+        })
+        
         return {
             "content_id": content_id,
             "question": question,
-            "answer": answer
+            "answer": answer,
+            "output_id": output_id
         }
     except HTTPException:
         raise
@@ -293,6 +341,7 @@ async def get_content_history(current_user: dict = Depends(get_current_user)):
                 "content_id": str(c["_id"]),
                 "input_type": c["input_type"],
                 "created_at": c["created_at"],
+                "title": c.get("title") or f"{c['input_type'].capitalize()} Content",
                 "preview": c["normalized_text"][:200] + "..." if len(c["normalized_text"]) > 200 else c["normalized_text"]
             })
         

@@ -33,17 +33,23 @@ function InputSelector({ onSubmit, loading }) {
   const validateAndSetFile = (file) => {
     const validTypes = [
       'application/pdf',
+      'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'video/mp4'
+      'video/mp4',
+      'video/x-msvideo',
+      'video/quicktime',
+      'video/x-matroska',
+      'video/x-flv',
+      'video/x-ms-wmv'
     ]
     
-    const validExtensions = ['.pdf', '.docx', '.mp4']
+    const validExtensions = ['.pdf', '.doc', '.docx', '.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
     const fileExtension = '.' + file.name.split('.').pop().toLowerCase()
     
     if (validTypes.includes(file.type) || validExtensions.includes(fileExtension)) {
       setSelectedFile(file)
     } else {
-      alert('Please upload a PDF, DOCX, or MP4 file')
+      alert('Please upload a PDF, Word (.doc/.docx), or Video file (.mp4/.avi/.mov/.mkv/.flv/.wmv)')
     }
   }
 
@@ -192,7 +198,7 @@ function InputSelector({ onSubmit, loading }) {
                       <input
                         type="file"
                         onChange={handleFileSelect}
-                        accept=".pdf,.docx,.mp4"
+                        accept=".pdf,.doc,.docx,.mp4,.avi,.mov,.mkv,.flv,.wmv"
                         className="hidden"
                       />
                       <span className="cursor-pointer bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:from-blue-500 hover:to-purple-500 transition-all inline-block shadow-lg">
@@ -204,7 +210,7 @@ function InputSelector({ onSubmit, loading }) {
               )}
             </div>
             <p className="text-sm text-slate-600 mt-3 font-medium">
-              📎 Upload documents or videos for processing. (PDF, DOCX, MP4)
+              📎 Upload documents or videos for processing. (PDF, Word: .doc/.docx, Video: .mp4/.avi/.mov/.mkv/.flv/.wmv)
             </p>
           </div>
         )}

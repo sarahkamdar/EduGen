@@ -98,6 +98,11 @@ def generate_flashcards(normalized_text: str, flashcard_type: str = "Concept →
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY environment variable not set")
     
+    # Truncate content if too long
+    max_content_length = 3000
+    if len(normalized_text) > max_content_length:
+        normalized_text = normalized_text[:max_content_length] + "..."
+    
     prompt = FLASHCARD_PROMPT.format(
         normalized_text=normalized_text,
         flashcard_type=flashcard_type
@@ -110,14 +115,21 @@ def generate_flashcards(normalized_text: str, flashcard_type: str = "Concept →
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=4000  # Increased to allow longer responses
+                max_tokens=4000
             )
             
+            # Get the response text
             result_text = response.choices[0].message.content
             
             # Log for debugging
-            print(f"Flashcards - Raw response length: {len(result_text)}")
-            print(f"Flashcards - Raw response preview: {result_text[:200]}...")
+            print(f"\n=== FLASHCARDS DEBUG ===")
+            print(f"Response type: {type(result_text)}")
+            print(f"Response length: {len(result_text) if result_text else 0}")
+            print(f"Response is None: {result_text is None}")
+            print(f"Response is empty string: {result_text == ''}")
+            if result_text:
+                print(f"First 300 chars: {result_text[:300]}")
+            print(f"=== END DEBUG ===\n")
             
             # Check if response is empty
             if not result_text or result_text.strip() == "":

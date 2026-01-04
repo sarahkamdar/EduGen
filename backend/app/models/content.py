@@ -8,6 +8,7 @@ class ContentCreate(BaseModel):
     user_id: str
     input_type: str
     normalized_text: str
+    title: Optional[str] = None
 
 class GeneratedOutputCreate(BaseModel):
     user_id: str
@@ -24,6 +25,7 @@ def create_content(content_data: ContentCreate) -> str:
         "user_id": content_data.user_id,
         "input_type": content_data.input_type,
         "normalized_text": content_data.normalized_text,
+        "title": content_data.title,
         "created_at": datetime.utcnow()
     }
     
@@ -73,3 +75,47 @@ def get_generated_outputs(content_id: str, user_id: str) -> list:
     }).sort("created_at", -1))
     
     return outputs
+
+def update_generated_output(output_id: str, output_data: dict) -> bool:
+    """Update an existing generated output"""
+    db = get_database()
+    generated_outputs = db.generated_outputs
+    
+    result = generated_outputs.update_one(
+        {"_id": ObjectId(output_id)},
+        {"$set": {
+            "output": output_data["output"],
+            "options": output_data["options"],
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    return result.modified_count > 0
+
+def get_or_create_chatbot_output(content_id: str, user_id: str) -> str:
+    """Get existing chatbot conversation or create a new one"""
+    db = get_database()
+    generated_outputs = db.generated_outputs
+    
+    # Find existing chatbot conversation for this content
+    existing = generated_outputs.find_one({
+        "content_id": content_id,
+        "user_id": user_id,
+        "feature": "chatbot"
+    })
+    
+    if existing:
+        return str(existing["_id"])
+    
+    # Create new chatbot conversation
+    output_doc = {
+        "user_id": user_id,
+        "content_id": content_id,
+        "feature": "chatbot",
+        "options": {"message_count": 0},
+        "output": {"conversation": []},
+        "created_at": datetime.utcnow()
+    }
+    
+    result = generated_outputs.insert_one(output_doc)
+    return str(result.inserted_id)

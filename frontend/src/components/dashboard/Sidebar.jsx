@@ -162,7 +162,7 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
                       <p className={`text-xs font-semibold truncate ${
                         activeContentId === item.content_id ? 'text-white' : 'text-slate-800'
                       }`}>
-                        {item.input_type.charAt(0).toUpperCase() + item.input_type.slice(1)} Content
+                        {item.title || `${item.input_type.charAt(0).toUpperCase() + item.input_type.slice(1)} Content`}
                       </p>
                       <p
                         className={`text-[10px] mt-0.5 line-clamp-2 ${

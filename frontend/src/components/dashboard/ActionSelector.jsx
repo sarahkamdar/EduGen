@@ -4,7 +4,7 @@ import FlashcardConfig from './FlashcardConfig'
 import QuizConfig from './QuizConfig'
 import ChatbotUI from './ChatbotUI'
 
-function ActionSelector({ contentId, onGenerate }) {
+function ActionSelector({ contentId, onGenerate, chatbotHistory }) {
   const [activeTab, setActiveTab] = useState('summary')
   const [generating, setGenerating] = useState(false)
 
@@ -215,8 +215,8 @@ function ActionSelector({ contentId, onGenerate }) {
         )}
 
         {activeTab === 'chatbot' && (
-          <div className="h-[500px]">
-            <ChatbotUI contentId={contentId} />
+          <div className="h-[650px]">
+            <ChatbotUI contentId={contentId} historicalConversation={chatbotHistory} />
           </div>
         )}
       </div>

@@ -354,6 +354,19 @@ function DashboardLayout() {
 
       const data = await response.json()
 
+      // Special handling for chatbot - load conversation in ChatbotUI
+      if (feature === 'chatbot') {
+        setUi(prev => ({
+          ...prev,
+          activeAction: 'chatbot'
+        }))
+        setResult({
+          data: data,
+          action: 'chatbot'
+        })
+        return
+      }
+
       // Normalize the data structure for historical outputs
       // Historical data comes wrapped in { output: { ... } }
       // Fresh data comes directly as { quiz: [...], summary: "...", etc. }
@@ -475,17 +488,18 @@ function DashboardLayout() {
                 </div>
               )}
 
-              {/* Action Configuration (shown when NO result exists) */}
-              {!result.data && (
+              {/* Action Configuration (shown when NO result exists OR when chatbot is active) */}
+              {(!result.data || ui.activeAction === 'chatbot') && (
                 <ActionSelector 
                   contentId={content.contentId} 
                   onGenerate={handleGenerate}
                   isProcessing={ui.isProcessing}
+                  chatbotHistory={ui.activeAction === 'chatbot' && result.action === 'chatbot' ? result.data : null}
                 />
               )}
 
-              {/* Results Display (shown when result exists) */}
-              {result.data && result.action && (
+              {/* Results Display (shown when result exists, but NOT for chatbot) */}
+              {result.data && result.action && result.action !== 'chatbot' && (
                 <ResultRenderer 
                   activeAction={result.action}
                   resultData={result.data}

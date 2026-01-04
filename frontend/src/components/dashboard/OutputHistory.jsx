@@ -80,6 +80,11 @@ function OutputHistory({ contentId, onSelectOutput }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
     ),
+    chatbot: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    ),
     presentation: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
@@ -91,6 +96,7 @@ function OutputHistory({ contentId, onSelectOutput }) {
     summary: 'bg-blue-100 text-blue-700 border-blue-300',
     flashcards: 'bg-purple-100 text-purple-700 border-purple-300',
     quiz: 'bg-green-100 text-green-700 border-green-300',
+    chatbot: 'bg-pink-100 text-pink-700 border-pink-300',
     presentation: 'bg-orange-100 text-orange-700 border-orange-300'
   }
 
@@ -115,6 +121,9 @@ function OutputHistory({ contentId, onSelectOutput }) {
     }
     if (feature === 'flashcards' && options.flashcard_type) {
       return options.flashcard_type
+    }
+    if (feature === 'chatbot' && options.message_count) {
+      return `${options.message_count} messages`
     }
     if (feature === 'quiz') {
       const baseInfo = `${options.number_of_questions || 10} Q • ${options.difficulty || 'Medium'}`

@@ -35,11 +35,14 @@ Content:
 {normalized_text}
 
 Instructions:
-- Answer based on the content above
+- Answer based on the content above in plain conversational text
 - Be concise and clear
+- Do NOT use markdown headers (no # symbols)
+- Do NOT use excessive punctuation or special characters
+- Use simple bullet points (- or •) for lists only when necessary
+- Write in natural, readable sentences
 - If the answer is not in the content, say "I cannot find this information in the provided content."
-- Use bullet points for lists
-- Quote relevant parts when helpful"""
+- Quote relevant parts when helpful using regular quotes"""
     
     # Build messages array
     messages = [{"role": "system", "content": system_message}]
@@ -58,7 +61,7 @@ Instructions:
             response = client.chat.send(
                 model="deepseek/deepseek-r1-0528:free",
                 messages=messages,
-                max_tokens=1000,
+                max_tokens=2500,
                 temperature=0.7
             )
             
@@ -69,10 +72,19 @@ Instructions:
             message = response.choices[0].message
             result_text = message.content if hasattr(message, 'content') else ""
             
+            # Check if response was truncated
+            finish_reason = response.choices[0].finish_reason if hasattr(response.choices[0], 'finish_reason') else None
+            print(f"Chatbot - Finish reason: {finish_reason}")
+            
             if not result_text or result_text.strip() == "":
                 return "Sorry, I received an empty response. Please try again."
             
             print(f"Chatbot - Response length: {len(result_text)}")
+            
+            # If response was cut due to length, add indicator
+            if finish_reason == "length":
+                result_text += "\n\n[Response truncated due to length. Please ask a more specific question.]"
+            
             return result_text.strip()
             
     except Exception as e:
