@@ -1,6 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 
-function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLogout, loading, onClose, onDeleteContent }) {
+function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLogout, loading, onClose, onDeleteContent, onRefreshHistory }) {
+  const [editingId, setEditingId] = useState(null)
+  const [editTitle, setEditTitle] = useState('')
+
   const formatDate = (dateString) => {
     const date = new Date(dateString)
     const now = new Date()
@@ -87,8 +90,51 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
     }
   }
 
+  const handleStartEdit = (contentId, currentTitle, event) => {
+    event.stopPropagation()
+    setEditingId(contentId)
+    setEditTitle(currentTitle)
+  }
+
+  const handleSaveEdit = async (contentId, event) => {
+    event?.stopPropagation()
+    if (!editTitle.trim()) {
+      setEditingId(null)
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/content/${contentId}/rename`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: editTitle.trim() })
+      })
+
+      if (response.ok) {
+        // Refresh history if callback provided
+        if (onRefreshHistory) {
+          onRefreshHistory()
+        }
+      }
+    } catch (error) {
+      console.error('Failed to rename:', error)
+    }
+    
+    setEditingId(null)
+  }
+
+  const handleCancelEdit = (event) => {
+    event?.stopPropagation()
+    setEditingId(null)
+    setEditTitle('')
+  }
+
   return (
-    <aside className="w-64 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-r-2 border-blue-200 flex flex-col h-screen shadow-xl">
+    <aside className="w-80 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-r-2 border-blue-200 flex flex-col h-screen shadow-xl overflow-hidden">
       {/* Logo with Close Button */}
       <div className="p-4 border-b-2 border-blue-200 flex items-center justify-between">
         <div>
@@ -144,7 +190,7 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
             {history.map((item) => (
               <div
                 key={item.content_id}
-                className={`flex items-stretch gap-1.5 rounded-lg transition-all border-2 ${
+                className={`flex items-stretch rounded-lg transition-all border-2 overflow-hidden ${
                   activeContentId === item.content_id
                     ? 'bg-gradient-to-r from-blue-500 to-purple-500 border-blue-400 shadow-lg'
                     : 'bg-white/70 border-blue-200 hover:bg-white hover:border-blue-300 hover:shadow-md'
@@ -152,27 +198,58 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
               >
                 <button
                   onClick={() => onSelectContent(item.content_id)}
-                  className="flex-1 text-left p-2.5"
+                  className="flex-1 text-left p-2.5 min-w-0"
                 >
                   <div className="flex items-start gap-2">
                     <div className={`${getInputTypeColor(item.input_type)} p-1.5 rounded-md text-white flex-shrink-0 shadow-md`}>
                       {getInputTypeIcon(item.input_type)}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-semibold truncate ${
-                        activeContentId === item.content_id ? 'text-white' : 'text-slate-800'
-                      }`}>
-                        {item.title || `${item.input_type.charAt(0).toUpperCase() + item.input_type.slice(1)} Content`}
-                      </p>
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      {editingId === item.content_id ? (
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onBlur={(e) => handleSaveEdit(item.content_id, e)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveEdit(item.content_id, e)
+                            if (e.key === 'Escape') handleCancelEdit(e)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full text-xs font-semibold bg-white text-slate-800 px-2 py-1 rounded border-2 border-blue-400 focus:outline-none focus:border-blue-600"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="flex items-start gap-1 min-w-0">
+                          <p className={`text-sm font-semibold break-words flex-1 min-w-0 ${
+                            activeContentId === item.content_id ? 'text-white' : 'text-slate-800'
+                          }`}>
+                            {item.title || `${item.input_type.charAt(0).toUpperCase() + item.input_type.slice(1)} Content`}
+                          </p>
+                          <button
+                            onClick={(e) => handleStartEdit(item.content_id, item.title, e)}
+                            className={`flex-shrink-0 p-0.5 rounded transition-colors ${
+                              activeContentId === item.content_id
+                                ? 'text-white/70 hover:text-white hover:bg-white/20'
+                                : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'
+                            }`}
+                            title="Rename"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                       <p
-                        className={`text-[10px] mt-0.5 line-clamp-2 ${
+                        className={`text-xs mt-1 line-clamp-2 break-words ${
                           activeContentId === item.content_id ? 'text-blue-100' : 'text-slate-600'
                         }`}
                       >
                         {item.preview}
                       </p>
                       <p
-                        className={`text-[10px] mt-1 font-medium ${
+                        className={`text-[10px] mt-1.5 font-medium ${
                           activeContentId === item.content_id ? 'text-blue-200' : 'text-slate-500'
                         }`}
                       >
@@ -185,10 +262,10 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
                 {/* Delete button */}
                 <button
                   onClick={(e) => handleDeleteContent(item.content_id, e)}
-                  className={`flex-shrink-0 px-2 transition-colors rounded-r-lg ${
+                  className={`flex-shrink-0 w-10 flex items-center justify-center transition-colors border-l-2 ${
                     activeContentId === item.content_id
-                      ? 'text-white/70 hover:text-white hover:bg-red-500'
-                      : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                      ? 'text-white/70 hover:text-white hover:bg-red-500 border-blue-400'
+                      : 'text-slate-400 hover:text-red-600 hover:bg-red-50 border-blue-200'
                   }`}
                   title="Delete content"
                 >

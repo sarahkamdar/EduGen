@@ -1,6 +1,9 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form, Request
+from fastapi.responses import StreamingResponse
 from typing import Optional
 from bson import ObjectId
+import json
+import asyncio
 from app.auth.dependencies import get_current_user
 from app.database.connection import get_database
 from app.models.content import (
@@ -14,7 +17,7 @@ from app.models.content import (
     update_generated_output,
     get_or_create_chatbot_output
 )
-from app.services.content_processor import process_content
+from app.services.content_processor import process_content, process_content_with_progress
 from app.services.summary import generate_summary
 from app.services.flashcards import generate_flashcards as create_flashcards
 from app.services.quiz import generate_quiz as create_quiz
@@ -66,6 +69,116 @@ async def upload_content(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/upload-stream")
+async def upload_content_stream(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload content with real-time progress updates via Server-Sent Events"""
+    
+    # Parse multipart form data BEFORE creating the generator
+    try:
+        form = await request.form()
+        file = form.get('file')
+        youtube_url = form.get('youtube_url')
+        text = form.get('text')
+    except Exception as e:
+        # Return error immediately if form parsing fails
+        async def error_gen():
+            error_data = json.dumps({
+                "stage": "error",
+                "message": f"Request parsing failed: {str(e)}",
+                "percentage": 0
+            })
+            yield f"data: {error_data}\n\n"
+        
+        return StreamingResponse(
+            error_gen(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no"
+            }
+        )
+    
+    async def generate_progress():
+        # List to collect progress events
+        progress_events = []
+        
+        # Progress callback that collects events
+        async def progress_callback(stage: str, message: str, percentage: int):
+            progress_events.append({
+                "stage": stage,
+                "message": message,
+                "percentage": percentage
+            })
+        
+        # Process content with progress tracking
+        try:
+            # Start yielding initial progress
+            yield f"data: {json.dumps({'stage': 'start', 'message': 'Starting...', 'percentage': 0})}\n\n"
+            
+            input_type, normalized_text = await process_content_with_progress(
+                file, youtube_url, text, progress_callback
+            )
+            
+            # Yield all collected progress events
+            for event in progress_events:
+                yield f"data: {json.dumps(event)}\n\n"
+                await asyncio.sleep(0.05)
+            
+            # Generate meaningful title
+            title = None
+            if file:
+                title = file.filename.rsplit('.', 1)[0][:100] if hasattr(file, 'filename') and file.filename else f"{input_type.capitalize()} Document"
+            elif youtube_url:
+                title = "YouTube Video"
+            elif text:
+                title = text[:50].strip() + ("..." if len(text) > 50 else "")
+            
+            if not title:
+                title = f"{input_type.capitalize()} Content"
+            
+            # Save to database
+            content_data = ContentCreate(
+                user_id=current_user["user_id"],
+                input_type=input_type,
+                normalized_text=normalized_text,
+                title=title
+            )
+            
+            content_id = create_content(content_data)
+            
+            # Send success event
+            success_data = json.dumps({
+                "stage": "complete",
+                "message": "Content processed successfully!",
+                "percentage": 100,
+                "content_id": content_id,
+                "input_type": input_type
+            })
+            yield f"data: {success_data}\n\n"
+            
+        except Exception as e:
+            # Send error event
+            error_data = json.dumps({
+                "stage": "error",
+                "message": str(e),
+                "percentage": 0
+            })
+            yield f"data: {error_data}\n\n"
+    
+    return StreamingResponse(
+        generate_progress(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
 @router.post("/summary")
 async def generate_content_summary(
     content_id: str = Form(...),
@@ -116,6 +229,7 @@ async def generate_content_summary(
 async def generate_flashcards_endpoint(
     content_id: str = Form(...),
     flashcard_type: str = Form("Concept → Definition"),
+    number_of_cards: int = Form(10),
     current_user: dict = Depends(get_current_user)
 ):
     try:
@@ -127,13 +241,13 @@ async def generate_flashcards_endpoint(
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        flashcards = create_flashcards(content['normalized_text'], flashcard_type)
+        flashcards = create_flashcards(content['normalized_text'], flashcard_type, number_of_cards)
         
         output_data = GeneratedOutputCreate(
             user_id=current_user["user_id"],
             content_id=content_id,
             feature="flashcards",
-            options={"flashcard_type": flashcard_type},
+            options={"flashcard_type": flashcard_type, "number_of_cards": number_of_cards},
             output=flashcards
         )
         
@@ -538,6 +652,43 @@ async def delete_output(
         generated_outputs.delete_one({"_id": ObjectId(output_id)})
         
         return {"success": True, "message": "Output deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/{content_id}/rename")
+async def rename_content(
+    content_id: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        db = get_database()
+        content_collection = db.content
+        
+        # Parse JSON body
+        body = await request.json()
+        title = body.get('title', '').strip()
+        
+        if not title:
+            raise HTTPException(status_code=400, detail="Title cannot be empty")
+        
+        content = content_collection.find_one({"_id": ObjectId(content_id)})
+        
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        if content["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Update the title
+        content_collection.update_one(
+            {"_id": ObjectId(content_id)},
+            {"$set": {"title": title}}
+        )
+        
+        return {"success": True, "message": "Content renamed successfully", "title": title}
     except HTTPException:
         raise
     except Exception as e:

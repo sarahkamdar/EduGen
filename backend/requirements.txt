@@ -1,10 +1,12 @@
 fastapi==0.127.0
 uvicorn==0.40.0
 python-multipart==0.0.21
-openai-whisper==20250625
-torch==2.9.1
+faster-whisper==1.1.0
 numpy==2.3.5
-openrouter
+transformers
+torch
+sentencepiece
+groq
 python-dotenv
 pymongo
 bcrypt
@@ -12,3 +14,5 @@ python-jose[cryptography]
 yt-dlp
 pypdf
 python-docx
+email-validator
+requests

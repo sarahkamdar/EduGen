@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 
 function FlashcardConfig({ contentId, onGenerate, loading }) {
   const [selectedType, setSelectedType] = useState('Concept → Definition')
+  const [numberOfCards, setNumberOfCards] = useState(10)
 
   const flashcardTypes = [
     {
@@ -66,6 +67,7 @@ function FlashcardConfig({ contentId, onGenerate, loading }) {
       const formData = new FormData()
       formData.append('content_id', contentId)
       formData.append('flashcard_type', selectedType)
+      formData.append('number_of_cards', numberOfCards)
       onGenerate(formData)
     }
   }
@@ -152,6 +154,22 @@ function FlashcardConfig({ contentId, onGenerate, loading }) {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Number of Cards Input */}
+      <div className="bg-white border-2 border-purple-200 rounded-lg p-3">
+        <label className="block text-sm font-semibold text-slate-700 mb-2">
+          Number of Flashcards
+        </label>
+        <input
+          type="number"
+          min="5"
+          max="20"
+          value={numberOfCards}
+          onChange={(e) => setNumberOfCards(Math.min(20, Math.max(5, parseInt(e.target.value) || 10)))}
+          className="w-full px-3 py-2 border-2 border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+        />
+        <p className="text-xs text-slate-500 mt-1">Choose between 5 and 20 flashcards</p>
       </div>
 
       {/* Generate Button */}

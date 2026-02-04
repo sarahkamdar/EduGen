@@ -77,7 +77,9 @@ function DashboardLayout() {
     activeAction: null,        // 'summary' | 'flashcards' | 'quiz' | 'presentation' | 'chatbot' | null
     isProcessing: false,       // Upload or generation in progress
     sidebarOpen: true,         // Sidebar visibility
-    processingStep: 0          // Upload progress (0-3)
+    processingStage: 'upload', // Current processing stage
+    processingMessage: 'Processing...', // Current status message
+    processingPercentage: 0    // Progress percentage (0-100)
   })
 
   // ==================== RESULTS STATE ====================
@@ -135,61 +137,178 @@ function DashboardLayout() {
   }
 
   /**
-   * Upload new content (text, file, YouTube URL)
+   * Upload new content with real-time progress updates
    */
   const handleUpload = async (formData) => {
     // Start processing
-    setUi(prev => ({ ...prev, isProcessing: true, processingStep: 0 }))
+    setUi(prev => ({ 
+      ...prev, 
+      isProcessing: true, 
+      processingStage: 'start',
+      processingMessage: 'Starting upload...',
+      processingPercentage: 0
+    }))
     setErrors({ uploadError: '', generateError: '' })
 
     try {
-      // Simulate processing steps for UX
-      const steps = [
-        { step: 0, delay: 500 },   // Uploading
-        { step: 1, delay: 1000 },  // Extracting
-        { step: 2, delay: 1500 },  // Transcribing
-        { step: 3, delay: 500 }    // Finalizing
-      ]
-
-      for (const { step, delay } of steps) {
-        setUi(prev => ({ ...prev, processingStep: step }))
-        await new Promise(resolve => setTimeout(resolve, delay))
-      }
-
-      // Call backend
       const token = localStorage.getItem('token')
-      const response = await fetch('/content/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      })
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          handleUnauthorized()
-          return
-        }
-        const data = await response.json()
-        throw new Error(data.detail || 'Upload failed')
-      }
-
-      const data = await response.json()
       
-      // Save content data
-      setContent({
-        contentId: data.content_id,
-        inputType: data.input_type || 'unknown',
-        normalizedTextStatus: 'ready'
-      })
+      // Check if it's a file upload (PDF, Word, Video)
+      const hasFile = formData.has('file')
+      
+      if (hasFile) {
+        // For file uploads, use SSE streaming endpoint
+        const response = await fetch('/content/upload-stream', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        })
 
-      // Refresh history
-      await fetchHistory()
+        if (!response.ok) {
+          if (response.status === 401) {
+            handleUnauthorized()
+            return
+          }
+          const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }))
+          throw new Error(errorData.detail || 'Upload failed')
+        }
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+
+        let contentId = null
+        let inputType = null
+
+        while (true) {
+          const { done, value } = await reader.read()
+          
+          if (done) break
+
+          const chunk = decoder.decode(value, { stream: true })
+          const lines = chunk.split('\n')
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6))
+                
+                // Update UI with real-time progress
+                setUi(prev => ({
+                  ...prev,
+                  processingStage: data.stage,
+                  processingMessage: data.message,
+                  processingPercentage: data.percentage
+                }))
+
+                // Handle completion
+                if (data.stage === 'complete') {
+                  contentId = data.content_id
+                  inputType = data.input_type
+                }
+
+                // Handle error
+                if (data.stage === 'error') {
+                  throw new Error(data.message)
+                }
+              } catch (e) {
+                if (e.message && e.message !== 'Unexpected end of JSON input') {
+                  throw e
+                }
+              }
+            }
+          }
+        }
+
+        if (contentId) {
+          // Save content data
+          setContent({
+            contentId: contentId,
+            inputType: inputType || 'unknown',
+            normalizedTextStatus: 'ready'
+          })
+
+          // Refresh history
+          await fetchHistory()
+        } else {
+          throw new Error('Upload completed but no content ID received')
+        }
+      } else {
+        // For text/YouTube, use regular endpoint with simulated progress
+        const stages = ['upload', 'extract', 'transcribe', 'finalize']
+        const messages = [
+          'Processing input...',
+          'Extracting content...',
+          'Analyzing text...',
+          'Finalizing...'
+        ]
+        
+        // Start progress simulation
+        let currentStage = 0
+        const progressInterval = setInterval(() => {
+          if (currentStage < stages.length) {
+            setUi(prev => ({
+              ...prev,
+              processingStage: stages[currentStage],
+              processingMessage: messages[currentStage],
+              processingPercentage: Math.min(95, (currentStage + 1) * 25)
+            }))
+            currentStage++
+          }
+        }, 500)
+
+        const response = await fetch('/content/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        })
+
+        clearInterval(progressInterval)
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            handleUnauthorized()
+            return
+          }
+          const data = await response.json().catch(() => ({ detail: 'Upload failed' }))
+          throw new Error(data.detail || 'Upload failed')
+        }
+
+        const data = await response.json()
+        
+        // Show completion
+        setUi(prev => ({
+          ...prev,
+          processingStage: 'complete',
+          processingMessage: 'Content processed successfully!',
+          processingPercentage: 100
+        }))
+
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Save content data
+        setContent({
+          contentId: data.content_id,
+          inputType: data.input_type || 'unknown',
+          normalizedTextStatus: 'ready'
+        })
+
+        // Refresh history
+        await fetchHistory()
+      }
     } catch (error) {
       setErrors(prev => ({ ...prev, uploadError: error.message }))
     } finally {
-      setUi(prev => ({ ...prev, isProcessing: false, processingStep: 0 }))
+      setUi(prev => ({ 
+        ...prev, 
+        isProcessing: false, 
+        processingStage: 'upload',
+        processingMessage: 'Processing...',
+        processingPercentage: 0
+      }))
     }
   }
 
@@ -451,6 +570,7 @@ function DashboardLayout() {
           loading={history.loading}
           onClose={() => setUi(prev => ({ ...prev, sidebarOpen: false }))}
           onDeleteContent={handleDeleteContent}
+          onRefreshHistory={fetchHistory}
         />
       )}
 
@@ -509,7 +629,11 @@ function DashboardLayout() {
             </div>
           ) : ui.isProcessing ? (
             /* Upload Processing */
-            <ProcessingStatus currentStep={ui.processingStep} />
+            <ProcessingStatus 
+              stage={ui.processingStage}
+              message={ui.processingMessage}
+              percentage={ui.processingPercentage}
+            />
           ) : (
             /* Initial Upload Screen */
             <div className="py-8">

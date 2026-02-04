@@ -22,13 +22,9 @@ def evaluate_quiz(quiz_content: dict, user_responses: List[Dict], mode: str, use
             "question_id": qid,
             "is_correct": is_correct,
             "selected_option": selected if selected else "Not answered",
-            "correct_answer": correct_answer
+            "correct_answer": correct_answer,
+            "explanation": question.get("explanation", "")
         }
-        
-        if mode == "practice":
-            result_item["explanation"] = question.get("explanation", "")
-        else:
-            result_item["explanation"] = ""
         
         results.append(result_item)
     

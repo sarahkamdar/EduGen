@@ -55,6 +55,11 @@ cd backend
 uvicorn app.main:app --reload
 ```
 
+   **Note for Windows users:** If Device Guard blocks uvicorn.exe, use:
+   ```bash
+   python -m uvicorn app.main:app --reload
+   ```
+
 2. Access the API at `http://localhost:8000`
 3. View API documentation at `http://localhost:8000/docs`
 4. Check service health at `http://localhost:8000/health`
@@ -223,7 +228,7 @@ curl -X POST "http://localhost:8000/content/flashcards" \
 ```
 
 #### POST /content/quiz
-Generate quiz with exactly 4 options per question.
+Generate quiz with exactly 4 options per question and explanations.
 
 **Authentication Required:** Yes
 
@@ -239,7 +244,7 @@ curl -X POST "http://localhost:8000/content/quiz" \
 
 **Parameters:**
 - `difficulty`: easy, medium, hard
-- `mode`: practice, test
+- `mode`: practice (shows answer and explanation immediately), test (shows results after submission)
 
 **Response:**
 ```json
@@ -249,12 +254,17 @@ curl -X POST "http://localhost:8000/content/quiz" \
     {
       "question": "...",
       "options": ["A", "B", "C", "D"],
-      "correct_answer": "B"
+      "correct_answer": "B",
+      "explanation": "Brief explanation of the correct answer"
     }
   ],
   "output_id": "output_id"
 }
 ```
+
+**Note:** 
+- In **practice mode**, explanations are shown immediately with each question
+- In **test mode**, explanations are shown after test submission along with correct/incorrect status
 
 #### POST /content/presentation
 Generate presentation outline with max 4 bullets per slide.
