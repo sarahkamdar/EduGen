@@ -16,3 +16,5 @@ pypdf
 python-docx
 email-validator
 requests
+python-pptx==0.6.23
+Pillow>=10.3.0

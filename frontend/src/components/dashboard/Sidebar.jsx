@@ -135,25 +135,16 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
 
   return (
     <aside className="w-80 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-r-2 border-blue-200 flex flex-col h-screen shadow-xl overflow-hidden">
-      {/* Logo with Close Button */}
-      <div className="p-4 border-b-2 border-blue-200 flex items-center justify-between">
+      {/* Logo */}
+      <div className="p-4">
         <div>
           <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">EduGen</h1>
           <p className="text-[10px] text-slate-600 mt-0.5 font-medium">AI Educational Platform</p>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
-          aria-label="Close sidebar"
-        >
-          <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
       </div>
 
       {/* New Session Button */}
-      <div className="p-3 border-b-2 border-blue-200">
+      <div className="p-3">
         <button
           onClick={onNewSession}
           className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-2 px-3 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-600 transition-all flex items-center justify-center gap-1.5 shadow-lg text-sm"

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import PPTPreview from './PPTPreview'
 
 function ResultRenderer({ activeAction, resultData, onClose }) {
   const [currentCard, setCurrentCard] = useState(0)
@@ -31,7 +32,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
     summary: 'Summary',
     flashcards: 'Flashcards',
     quiz: 'Quiz',
-    presentation: 'Presentation',
+    ppt: 'Presentation',
     chatbot: 'Chatbot'
   }
 
@@ -52,7 +53,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
     ),
-    presentation: (
+    ppt: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
       </svg>
@@ -84,7 +85,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
       border: 'border-green-200',
       button: 'from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600'
     },
-    presentation: {
+    ppt: {
       gradient: 'from-orange-600 to-red-600',
       bg: 'from-orange-50 to-red-50',
       border: 'border-orange-200',
@@ -644,7 +645,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
                 {/* Show explanation if available */}
                 {question.explanation && question.explanation.trim() !== '' && (
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs font-semibold text-blue-900 mb-1.5">💡 Explanation:</p>
+                    <p className="text-xs font-semibold text-blue-900 mb-1.5"> Explanation:</p>
                     <div className="text-xs text-blue-800">
                       {formatText(question.explanation)}
                     </div>
@@ -833,26 +834,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
 
   // Render Presentation
   const renderPresentation = () => {
-    return (
-      <div className={`bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-xl p-8 text-center`}>
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl mb-3">
-          {actionIcons.presentation && (
-            <div className="text-white">
-              {actionIcons.presentation}
-            </div>
-          )}
-        </div>
-        <h4 className="text-lg font-bold text-slate-900 mb-2">Presentation Feature</h4>
-        <p className="text-sm text-slate-600 mb-4">
-          This feature is currently under development
-        </p>
-        <div className="bg-white/70 rounded-lg p-4 inline-block">
-          <pre className="text-xs text-slate-700 text-left">
-            {JSON.stringify(resultData, null, 2)}
-          </pre>
-        </div>
-      </div>
-    )
+    return <PPTPreview resultData={resultData} onClose={onClose} />
   }
 
   // Render Chatbot
@@ -883,7 +865,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
         return renderFlashcards()
       case 'quiz':
         return renderQuiz()
-      case 'presentation':
+      case 'ppt':
         return renderPresentation()
       case 'chatbot':
         return renderChatbot()

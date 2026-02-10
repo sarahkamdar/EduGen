@@ -23,6 +23,7 @@ from app.services.flashcards import generate_flashcards as create_flashcards
 from app.services.quiz import generate_quiz as create_quiz
 from app.services.quiz_evaluator import evaluate_quiz
 from app.services.chatbot import chat_with_content as chatbot_service
+from app.services.ppt import generate_presentation
 from app.models.quiz_attempt import QuizEvaluationRequest, QuizAttemptCreate, create_quiz_attempt
 
 router = APIRouter(prefix="/content", tags=["Content"])
@@ -312,64 +313,6 @@ async def generate_quiz_endpoint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/presentation")
-async def generate_presentation(
-    content_id: str = Form(...),
-    max_slides: int = Form(10),
-    theme: str = Form("professional"),
-    current_user: dict = Depends(get_current_user)
-):
-    try:
-        content = get_content_by_id(content_id)
-        
-        if not content:
-            raise HTTPException(status_code=404, detail="Content not found")
-        
-        if content["user_id"] != current_user["user_id"]:
-            raise HTTPException(status_code=403, detail="Access denied")
-        
-        prompt = f"""Generate presentation outline. Max {max_slides} slides. Each slide: title and max 4 bullet points. No repetition. JSON format: [{{"title": "string", "bullets": ["string"]}}]
-
-Content: {content['normalized_text']}"""
-        
-        from openrouter import OpenRouter
-        import os
-        import json
-        
-        client = OpenRouter(api_key=os.getenv("OPENROUTER_API_KEY"))
-        
-        response = client.chat.completions.create(
-            model="deepseek/deepseek-r1",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        presentation_text = response.choices[0].message.content
-        
-        try:
-            presentation = json.loads(presentation_text)
-        except:
-            presentation = {"raw_response": presentation_text}
-        
-        output_data = GeneratedOutputCreate(
-            user_id=current_user["user_id"],
-            content_id=content_id,
-            feature="presentation",
-            options={"max_slides": max_slides, "theme": theme},
-            output={"presentation": presentation}
-        )
-        
-        output_id = create_generated_output(output_data)
-        
-        return {
-            "content_id": content_id,
-            "presentation": presentation,
-            "output_id": output_id
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @router.post("/chat")
 async def chat_with_content_endpoint(
     content_id: str = Form(...),
@@ -390,17 +333,30 @@ async def chat_with_content_endpoint(
         
         # Parse chat history if provided
         history = []
+        frontend_messages = []
         if chat_history:
             try:
                 parsed_history = json.loads(chat_history)
-                # Convert from frontend format (sender/text) to API format (role/content)
+                # Handle both formats: {role, content} from frontend or {sender, text} from old format
                 for msg in parsed_history:
-                    if msg.get('sender') == 'user':
-                        history.append({"role": "user", "content": msg.get('text', '')})
-                    elif msg.get('sender') == 'ai':
-                        history.append({"role": "assistant", "content": msg.get('text', '')})
+                    if msg.get('role'):
+                        # New format: {role: 'user'|'assistant', content: 'text'}
+                        history.append({"role": msg.get('role'), "content": msg.get('content', '')})
+                        frontend_messages.append({
+                            "sender": "user" if msg.get('role') == 'user' else "ai",
+                            "text": msg.get('content', '')
+                        })
+                    elif msg.get('sender'):
+                        # Old format: {sender: 'user'|'ai', text: 'text'}
+                        role = 'user' if msg.get('sender') == 'user' else 'assistant'
+                        history.append({"role": role, "content": msg.get('text', '')})
+                        frontend_messages.append({
+                            "sender": msg.get('sender'),
+                            "text": msg.get('text', '')
+                        })
             except:
                 history = []
+                frontend_messages = []
         
         # Get AI response
         answer = chatbot_service(
@@ -412,22 +368,31 @@ async def chat_with_content_endpoint(
         # Get or create chatbot conversation for this content
         output_id = get_or_create_chatbot_output(content_id, current_user["user_id"])
         
-        # Build full conversation history
+        # CRITICAL: Retrieve EXISTING conversation from database first
+        db = get_database()
+        generated_outputs = db.generated_outputs
+        existing_output = generated_outputs.find_one({"_id": ObjectId(output_id)})
+        
+        # Start with existing conversation from database
         full_conversation = []
+        if existing_output and existing_output.get('output') and existing_output['output'].get('conversation'):
+            # Filter out any empty or invalid messages from existing conversation
+            existing_conv = existing_output['output']['conversation']
+            full_conversation = [
+                msg for msg in existing_conv 
+                if msg.get('sender') and msg.get('text') and msg.get('text').strip()
+            ]
         
-        # Add all previous messages from history if exists
-        if chat_history:
-            try:
-                parsed_history = json.loads(chat_history)
-                full_conversation = parsed_history if isinstance(parsed_history, list) else []
-            except:
-                full_conversation = []
+        # Add the new question and answer (with validation)
+        if question and question.strip():
+            full_conversation.append({"sender": "user", "text": question.strip()})
+        if answer and answer.strip():
+            full_conversation.append({"sender": "ai", "text": answer.strip()})
         
-        # Add the new question and answer
-        full_conversation.append({"sender": "user", "text": question})
-        full_conversation.append({"sender": "ai", "text": answer})
+        # Log the conversation being saved (for debugging)
+        print(f"[CHATBOT] Saving conversation with {len(full_conversation)} messages for content {content_id}")
         
-        # Update the existing conversation
+        # Update the existing conversation with the merged history
         update_generated_output(output_id, {
             "output": {"conversation": full_conversation},
             "options": {"message_count": len(full_conversation)}
@@ -485,6 +450,7 @@ async def get_content_outputs(
                 "output_id": str(o["_id"]),
                 "feature": o["feature"],
                 "options": o["options"],
+                "output": o.get("output"),  # Include output data (conversation, flashcards, etc.)
                 "score": o.get("score"),  # Include quiz score if available
                 "created_at": o["created_at"]
             })
@@ -652,6 +618,112 @@ async def delete_output(
         generated_outputs.delete_one({"_id": ObjectId(output_id)})
         
         return {"success": True, "message": "Output deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/ppt")
+async def generate_ppt_endpoint(
+    content_id: str = Form(...),
+    slide_count: int = Form(10),
+    theme: str = Form("modern"),
+    include_images: bool = Form(True),
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        from app.services.ppt import analyze_content_for_slides
+        
+        content = get_content_by_id(content_id)
+        
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        if content["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # First, analyze content and get structure for preview
+        slide_structure = analyze_content_for_slides(
+            normalized_text=content['normalized_text'],
+            slide_count=slide_count
+        )
+        
+        # Generate presentation file
+        file_path = generate_presentation(
+            normalized_text=content['normalized_text'],
+            slide_count=slide_count,
+            theme=theme,
+            include_images=include_images
+        )
+        
+        # Save output metadata with slide structure
+        output_data = GeneratedOutputCreate(
+            user_id=current_user["user_id"],
+            content_id=content_id,
+            feature="ppt",
+            options={
+                "slide_count": slide_count,
+                "theme": theme,
+                "include_images": include_images
+            },
+            output={
+                "file_path": file_path,
+                "slide_structure": slide_structure
+            }
+        )
+        
+        output_id = create_generated_output(output_data)
+        
+        # Return preview data with download option
+        return {
+            "content_id": content_id,
+            "output_id": output_id,
+            "slide_structure": slide_structure,
+            "file_path": file_path,
+            "download_url": f"/content/ppt/download/{output_id}",
+            "options": {
+                "slide_count": slide_count,
+                "theme": theme,
+                "include_images": include_images
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/ppt/download/{output_id}")
+async def download_ppt(
+    output_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    try:
+        import os
+        from fastapi.responses import FileResponse
+        
+        db = get_database()
+        generated_outputs = db.generated_outputs
+        
+        output = generated_outputs.find_one({"_id": ObjectId(output_id)})
+        
+        if not output:
+            raise HTTPException(status_code=404, detail="Output not found")
+        
+        if output["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        file_path = output["output"].get("file_path")
+        
+        if not file_path or not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="Presentation file not found")
+        
+        return FileResponse(
+            path=file_path,
+            filename=f"presentation_{output['content_id']}.pptx",
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        )
+    
     except HTTPException:
         raise
     except Exception as e:

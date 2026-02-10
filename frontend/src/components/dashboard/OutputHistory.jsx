@@ -6,18 +6,24 @@ function OutputHistory({ contentId, onSelectOutput }) {
   const [error, setError] = useState('')
   const [isOpen, setIsOpen] = useState(false)
 
+  // Fetch outputs whenever contentId changes (open or not)
   useEffect(() => {
-    if (contentId && isOpen) {
+    if (contentId) {
       fetchOutputs()
+    } else {
+      setOutputs([])
     }
-  }, [contentId, isOpen])
+  }, [contentId])
 
   const fetchOutputs = async () => {
+    if (!contentId) return
+    
     setLoading(true)
     setError('')
 
     try {
       const token = localStorage.getItem('token')
+      console.log('[OutputHistory] Fetching outputs for content:', contentId)
       const response = await fetch(`/content/${contentId}/outputs`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -29,8 +35,10 @@ function OutputHistory({ contentId, onSelectOutput }) {
       }
 
       const data = await response.json()
+      console.log('[OutputHistory] Loaded', data.outputs?.length || 0, 'outputs')
       setOutputs(data.outputs || [])
     } catch (err) {
+      console.error('[OutputHistory] Error:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -85,7 +93,7 @@ function OutputHistory({ contentId, onSelectOutput }) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
       </svg>
     ),
-    presentation: (
+    ppt: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
       </svg>
@@ -97,7 +105,7 @@ function OutputHistory({ contentId, onSelectOutput }) {
     flashcards: 'bg-purple-100 text-purple-700 border-purple-300',
     quiz: 'bg-green-100 text-green-700 border-green-300',
     chatbot: 'bg-pink-100 text-pink-700 border-pink-300',
-    presentation: 'bg-orange-100 text-orange-700 border-orange-300'
+    ppt: 'bg-orange-100 text-orange-700 border-orange-300'
   }
 
   const formatDate = (dateString) => {
@@ -125,6 +133,12 @@ function OutputHistory({ contentId, onSelectOutput }) {
     if (feature === 'chatbot' && options.message_count) {
       return `${options.message_count} messages`
     }
+    if (feature === 'ppt') {
+      const slideInfo = `${options.slide_count || 10} slides`
+      const themeInfo = options.theme ? ` • ${options.theme.charAt(0).toUpperCase()}${options.theme.slice(1)}` : ''
+      const imageInfo = options.include_images ? ' • Images' : ''
+      return `${slideInfo}${themeInfo}${imageInfo}`
+    }
     if (feature === 'quiz') {
       const baseInfo = `${options.number_of_questions || 10} Q • ${options.difficulty || 'Medium'}`
       const modeInfo = options.mode ? ` • ${options.mode}` : ''
@@ -146,9 +160,13 @@ function OutputHistory({ contentId, onSelectOutput }) {
         className="w-full flex items-center justify-between px-4 py-3 bg-white border-2 border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          {loading && !isOpen ? (
+            <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+          ) : (
+            <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )}
           <div className="text-left">
             <p className="text-sm font-semibold text-slate-900">Generation History</p>
             <p className="text-xs text-slate-500">

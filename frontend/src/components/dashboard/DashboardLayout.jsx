@@ -100,6 +100,7 @@ function DashboardLayout() {
     pastSessions: [],
     loading: true
   })
+  const [outputHistoryRefreshKey, setOutputHistoryRefreshKey] = useState(0)
 
   // ==================== LIFECYCLE ====================
   useEffect(() => {
@@ -314,6 +315,7 @@ function DashboardLayout() {
 
   /**
    * Generate action output (summary, flashcards, quiz, etc.)
+   * Special handling for presentation downloads
    */
   const handleGenerate = async (action, formData) => {
     // CRITICAL: Clear previous result when generating new action
@@ -340,10 +342,11 @@ function DashboardLayout() {
           handleUnauthorized()
           return
         }
-        const data = await response.json()
+        const data = await response.json().catch(() => ({ detail: 'Generation failed' }))
         throw new Error(data.detail || 'Generation failed')
       }
 
+      // All actions now return JSON (including PPT)
       const data = await response.json()
       
       // Save result for ONLY this action
@@ -354,6 +357,9 @@ function DashboardLayout() {
 
       // Update history after successful generation
       await fetchHistory()
+      
+      // Force OutputHistory to refresh
+      setOutputHistoryRefreshKey(prev => prev + 1)
     } catch (error) {
       setErrors(prev => ({ ...prev, generateError: error.message }))
       // Clear active action on error
@@ -396,14 +402,16 @@ function DashboardLayout() {
    * Loads content but clears all results
    */
   const handleSelectContent = (contentId) => {
+    console.log('[Dashboard] Switching to content:', contentId)
     setContent(prev => ({
       ...prev,
       contentId: contentId,
       normalizedTextStatus: 'ready'
     }))
+    // Clear UI state and results when switching content
     setUi(prev => ({
       ...prev,
-      activeAction: prev.activeAction === 'chatbot' ? 'chatbot' : null,
+      activeAction: null, // Always clear active action when switching content
       isProcessing: false
     }))
     setResult({
@@ -414,6 +422,8 @@ function DashboardLayout() {
       uploadError: '',
       generateError: ''
     })
+    // Reset output history refresh key for new content
+    setOutputHistoryRefreshKey(0)
   }
 
   /**
@@ -456,6 +466,7 @@ function DashboardLayout() {
    */
   const handleSelectHistoryOutput = async (outputId, feature) => {
     try {
+      console.log('[Dashboard] Loading output:', outputId, 'Feature:', feature)
       const token = localStorage.getItem('token')
       const response = await fetch(`/content/output/${outputId}`, {
         headers: {
@@ -473,16 +484,29 @@ function DashboardLayout() {
 
       const data = await response.json()
 
-      // Special handling for chatbot - load conversation in ChatbotUI
+      // Special handling for chatbot - force reload by clearing first
       if (feature === 'chatbot') {
+        // First clear to force unmount/remount of ChatbotUI
         setUi(prev => ({
           ...prev,
-          activeAction: 'chatbot'
+          activeAction: null
         }))
         setResult({
-          data: data,
-          action: 'chatbot'
+          data: null,
+          action: null
         })
+        
+        // Then set after a brief delay to trigger reload
+        setTimeout(() => {
+          setUi(prev => ({
+            ...prev,
+            activeAction: 'chatbot'
+          }))
+          setResult({
+            data: data,
+            action: 'chatbot'
+          })
+        }, 50)
         return
       }
 
@@ -597,6 +621,7 @@ function DashboardLayout() {
             <div className="space-y-6">
               {/* Output History */}
               <OutputHistory 
+                key={`history-${content.contentId}-${outputHistoryRefreshKey}`}
                 contentId={content.contentId}
                 onSelectOutput={handleSelectHistoryOutput}
               />
@@ -611,6 +636,7 @@ function DashboardLayout() {
               {/* Action Configuration (shown when NO result exists OR when chatbot is active) */}
               {(!result.data || ui.activeAction === 'chatbot') && (
                 <ActionSelector 
+                  key={`action-${content.contentId}`}
                   contentId={content.contentId} 
                   onGenerate={handleGenerate}
                   isProcessing={ui.isProcessing}

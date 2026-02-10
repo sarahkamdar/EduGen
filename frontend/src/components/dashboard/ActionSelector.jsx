@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import SummaryConfig from './SummaryConfig'
 import FlashcardConfig from './FlashcardConfig'
 import QuizConfig from './QuizConfig'
+import PPTConfig from './PPTConfig'
 import ChatbotUI from './ChatbotUI'
 
 function ActionSelector({ contentId, onGenerate, chatbotHistory }) {
@@ -43,7 +44,7 @@ function ActionSelector({ contentId, onGenerate, chatbotHistory }) {
       available: true
     },
     {
-      id: 'presentation',
+      id: 'ppt',
       name: 'Presentation',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,92 +132,20 @@ function ActionSelector({ contentId, onGenerate, chatbotHistory }) {
           />
         )}
 
-        {activeTab === 'presentation' && (
-          <div className="space-y-4">
-            <div className="text-center">
-              <h3 className="text-lg font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-1">
-                Presentation Generator
-              </h3>
-              <p className="text-slate-600 font-medium text-xs">
-                Create stunning slides from your content
-              </p>
-            </div>
-            
-            <div className="bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 border-2 border-orange-200 rounded-xl p-8">
-              <div className="text-center mb-4">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl mb-3">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-                  </svg>
-                </div>
-                <h4 className="text-base font-bold text-slate-900 mb-2">Feature Under Development</h4>
-                <p className="text-sm text-slate-700 mb-4">
-                  We're building an intelligent presentation generator that will:
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                <div className="bg-white/70 rounded-lg p-3 border border-orange-200">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-orange-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-900">Auto-generate slides</p>
-                      <p className="text-[10px] text-slate-600">Create professional slides from your content</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white/70 rounded-lg p-3 border border-orange-200">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-orange-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-900">Smart formatting</p>
-                      <p className="text-[10px] text-slate-600">Beautiful templates and layouts</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white/70 rounded-lg p-3 border border-orange-200">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-orange-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-900">Export options</p>
-                      <p className="text-[10px] text-slate-600">Download as PPTX or PDF</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white/70 rounded-lg p-3 border border-orange-200">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-orange-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <div>
-                      <p className="text-xs font-semibold text-slate-900">Customization</p>
-                      <p className="text-[10px] text-slate-600">Adjust themes and slide count</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="bg-white/50 rounded-lg p-3 border border-orange-200">
-                <div className="flex items-center gap-2">
-                  <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-xs text-slate-700 font-medium">Coming soon - Stay tuned for updates!</p>
-                </div>
-              </div>
-            </div>
-          </div>
+        {activeTab === 'ppt' && (
+          <PPTConfig
+            contentId={contentId}
+            onGenerate={handleGenerate}
+            loading={generating}
+          />
         )}
 
         {activeTab === 'chatbot' && (
           <div className="h-[650px]">
-            <ChatbotUI contentId={contentId} historicalConversation={chatbotHistory} />
+            <ChatbotUI 
+              key={`chatbot-${contentId}`}
+              contentId={contentId} 
+            />
           </div>
         )}
       </div>

@@ -5,7 +5,9 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
   const [inputMessage, setInputMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [error, setError] = useState('')
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false)
   const messagesEndRef = useRef(null)
+  const loadedContentIdRef = useRef(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -15,34 +17,83 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
     scrollToBottom()
   }, [messages])
 
-  // Load historical conversation when provided
-  useEffect(() => {
-    if (historicalConversation && historicalConversation.output && historicalConversation.output.conversation) {
-      const conversation = historicalConversation.output.conversation
-      const formattedMessages = conversation.map((msg, index) => ({
-        id: index + 1,
-        sender: msg.sender,
-        text: msg.text,
-        timestamp: new Date()
-      }))
-      setMessages(formattedMessages)
-    }
-  }, [historicalConversation])
-
-  // Reset messages when contentId changes (but not if loading historical conversation)
-  useEffect(() => {
-    if (contentId && !historicalConversation) {
-      setMessages([
-        {
-          id: 1,
-          sender: 'ai',
-          text: "Hi! I'm your AI assistant for this content. Ask me anything about what you've uploaded, and I'll help you understand it better!",
-          timestamp: new Date()
+  // Fetch existing conversation for the current content
+  const fetchExistingConversation = async (contentId) => {
+    if (!contentId) return false
+    
+    setIsLoadingConversation(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/content/${contentId}/outputs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-      ])
-      setError('')
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Fetched outputs:', data)
+        const chatbotOutput = data.outputs?.find(output => output.feature === 'chatbot')
+        console.log('Chatbot output:', chatbotOutput)
+        
+        if (chatbotOutput && chatbotOutput.output && chatbotOutput.output.conversation) {
+          const conversation = chatbotOutput.output.conversation
+          console.log('Loading conversation with', conversation.length, 'messages')
+          // Filter out any messages without text (defensive check)
+          const validMessages = conversation.filter(msg => 
+            msg && msg.sender && msg.text && msg.text.trim()
+          )
+          const formattedMessages = validMessages.map((msg, index) => ({
+            id: index + 1,
+            sender: msg.sender,
+            text: msg.text,
+            timestamp: new Date()
+          }))
+          console.log('Valid messages loaded:', formattedMessages.length)
+          setMessages(formattedMessages)
+          return true // Conversation found
+        }
+      }
+      return false // No conversation found
+    } catch (err) {
+      console.error('Error fetching conversation:', err)
+      return false
+    } finally {
+      setIsLoadingConversation(false)
     }
-  }, [contentId, historicalConversation])
+  }
+
+  // Load conversation when contentId changes
+  useEffect(() => {
+    if (!contentId) {
+      setMessages([])
+      loadedContentIdRef.current = null
+      return
+    }
+    
+    // Only fetch if this is a different content than what we have loaded
+    if (contentId !== loadedContentIdRef.current) {
+      console.log('Loading conversation for contentId:', contentId)
+      loadedContentIdRef.current = contentId
+      setError('')
+      
+      // Fetch existing conversation
+      fetchExistingConversation(contentId).then((found) => {
+        console.log('Conversation found:', found)
+        // Only show welcome message if no conversation exists
+        if (!found) {
+          setMessages([
+            {
+              id: 1,
+              sender: 'ai',
+              text: "Hi! I'm your AI assistant for this content. Ask me anything about what you've uploaded, and I'll help you understand it better!",
+              timestamp: new Date()
+            }
+          ])
+        }
+      })
+    }
+  }, [contentId]) // Only depend on contentId, not loadedContentId
 
   // Format markdown-style text for display
   const formatMessage = (text) => {
@@ -106,7 +157,7 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
   }
 
   const handleSend = async () => {
-    if (!inputMessage.trim() || disabled || isTyping) return
+    if (!inputMessage.trim() || disabled || isTyping || isLoadingConversation) return
 
     const userMessage = {
       id: messages.length + 1,
@@ -128,9 +179,10 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
         throw new Error('Not authenticated. Please log in again.')
       }
       
-      // Prepare chat history (last 10 messages, exclude welcome message)
+      // Prepare chat history - include ALL messages except the welcome message
       const chatHistory = updatedMessages
-        .slice(1, -1) // Exclude welcome and current message
+        .filter(msg => !(msg.id === 1 && msg.sender === 'ai' && msg.text.startsWith("Hi! I'm your AI assistant")))
+        .slice(0, -1) // Exclude current message
         .map(msg => ({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.text
@@ -248,7 +300,21 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-        {messages.length === 0 ? (
+        {isLoadingConversation ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center max-w-sm">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl mb-3">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+              </div>
+              <p className="text-sm font-semibold text-slate-700 mb-1">Loading conversation...</p>
+              <p className="text-xs text-slate-500">Fetching your chat history</p>
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center max-w-sm">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl mb-3">
@@ -262,7 +328,7 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
           </div>
         ) : (
           <>
-            {messages.map((message) => (
+            {messages.filter(msg => msg.text && msg.text.trim()).map((message) => (
               <div
                 key={message.id}
                 className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -325,9 +391,10 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Ask a question about your content..."
+              placeholder={isLoadingConversation ? "Loading conversation..." : "Ask a question about your content..."}
               rows="1"
-              className="w-full px-4 py-3 pr-12 text-sm bg-gradient-to-br from-slate-50 to-blue-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
+              disabled={isLoadingConversation}
+              className="w-full px-4 py-3 pr-12 text-sm bg-gradient-to-br from-slate-50 to-blue-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ minHeight: '44px', maxHeight: '120px' }}
             />
             <div className="absolute right-3 bottom-3 text-xs text-slate-400">
@@ -336,7 +403,7 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
           </div>
           <button
             onClick={handleSend}
-            disabled={!inputMessage.trim()}
+            disabled={!inputMessage.trim() || isLoadingConversation}
             className="flex-shrink-0 w-11 h-11 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-xl hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center"
             title="Send message"
           >

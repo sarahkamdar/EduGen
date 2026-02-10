@@ -1,0 +1,12 @@
+Collecting python-pptx==0.6.23
+  Using cached python_pptx-0.6.23-py3-none-any.whl.metadata (18 kB)
+Requirement already satisfied: Pillow in c:\users\am\onedrive\desktop\sem 6\sgp\edugen\backend\venv\lib\site-packages (12.0.0)
+Requirement already satisfied: lxml>=3.1.0 in c:\users\am\onedrive\desktop\sem 6\sgp\edugen\backend\venv\lib\site-packages (from python-pptx==0.6.23) (6.0.2)
+Requirement already satisfied: XlsxWriter>=0.5.7 in c:\users\am\onedrive\desktop\sem 6\sgp\edugen\backend\venv\lib\site-packages (from python-pptx==0.6.23) (3.2.9)
+Downloading python_pptx-0.6.23-py3-none-any.whl (471 kB)
+Installing collected packages: python-pptx
+  Attempting uninstall: python-pptx
+    Found existing installation: python-pptx 1.0.2
+    Uninstalling python-pptx-1.0.2:
+      Successfully uninstalled python-pptx-1.0.2
+Successfully installed python-pptx-0.6.23
