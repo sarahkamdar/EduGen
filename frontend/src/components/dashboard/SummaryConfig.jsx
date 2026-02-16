@@ -64,10 +64,10 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
       {/* Header */}
       <div className="text-center">
         <h3 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-1">
-          Summary Configuration
+          Summary Settings
         </h3>
-        <p className="text-slate-600 font-medium text-xs">
-          Choose the type of summary you need
+        <p className="text-slate-600 text-xs">
+          Select summary type
         </p>
       </div>
 

@@ -1,10 +1,20 @@
 import os
 import re
+import asyncio
 from pathlib import Path
 from typing import Optional, Callable, Awaitable
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import UploadFile, HTTPException
 from app.services.audio_extractor import extract_audio
 from app.services.transcription import transcribe_audio
+
+# Thread pool for blocking operations
+_executor = ThreadPoolExecutor(max_workers=4)
+
+async def run_blocking(func, *args):
+    """Run a blocking function in thread pool to not block event loop"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_executor, func, *args)
 
 async def normalize_video(file: UploadFile, progress_callback: Optional[Callable[[str, str, int], Awaitable[None]]] = None) -> str:
     temp_dir = Path("temp")
@@ -14,20 +24,24 @@ async def normalize_video(file: UploadFile, progress_callback: Optional[Callable
         await progress_callback("upload", "Saving video file...", 10)
     
     file_path = temp_dir / file.filename
-    with open(file_path, "wb") as f:
-        f.write(await file.read())
+    content = await file.read()
+    
+    def save_file():
+        with open(file_path, "wb") as f:
+            f.write(content)
+    await run_blocking(save_file)
     
     if progress_callback:
         await progress_callback("extract", "Extracting audio from video...", 30)
     
-    audio_path = extract_audio(str(file_path))
-    os.remove(file_path)
+    audio_path = await run_blocking(extract_audio, str(file_path))
+    await run_blocking(os.remove, file_path)
     
     if progress_callback:
         await progress_callback("transcribe", "Transcribing audio to text...", 60)
     
-    transcript = transcribe_audio(audio_path)
-    os.remove(audio_path)
+    transcript = await run_blocking(transcribe_audio, audio_path)
+    await run_blocking(os.remove, audio_path)
     
     if progress_callback:
         await progress_callback("finalize", "Finalizing content...", 90)
@@ -69,14 +83,17 @@ async def normalize_youtube(youtube_url: str, progress_callback: Optional[Callab
         if progress_callback:
             await progress_callback("extract", "Downloading audio from YouTube...", 30)
         
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([youtube_url])
+        def download_youtube():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([youtube_url])
+        
+        await run_blocking(download_youtube)
         
         if progress_callback:
             await progress_callback("transcribe", "Transcribing audio to text...", 60)
         
-        transcript = transcribe_audio(str(audio_file))
-        os.remove(audio_file)
+        transcript = await run_blocking(transcribe_audio, str(audio_file))
+        await run_blocking(os.remove, audio_file)
         
         if progress_callback:
             await progress_callback("finalize", "Finalizing content...", 90)
@@ -96,29 +113,30 @@ async def normalize_pdf(file: UploadFile, progress_callback: Optional[Callable[[
             await progress_callback("upload", "Saving PDF file...", 10)
         
         file_path = temp_dir / file.filename
-        with open(file_path, "wb") as f:
-            f.write(await file.read())
+        content = await file.read()
+        
+        def save_file():
+            with open(file_path, "wb") as f:
+                f.write(content)
+        await run_blocking(save_file)
         
         if progress_callback:
             await progress_callback("extract", "Extracting text from PDF...", 40)
         
-        text = ""
-        try:
+        def extract_pdf_text():
+            text = ""
             pdf_reader = PdfReader(file_path)
-            total_pages = len(pdf_reader.pages)
-            
-            for i, page in enumerate(pdf_reader.pages):
+            for page in pdf_reader.pages:
                 extracted = page.extract_text()
                 if extracted:
                     text += extracted + "\n"
-                
-                # Update progress per page
-                if progress_callback and total_pages > 0:
-                    page_progress = 40 + int((i + 1) / total_pages * 40)
-                    await progress_callback("extract", f"Processing page {i+1} of {total_pages}...", page_progress)
-        finally:
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            return text
+        
+        text = await run_blocking(extract_pdf_text)
+        
+        # Cleanup
+        if os.path.exists(file_path):
+            await run_blocking(os.remove, file_path)
         
         if not text.strip():
             raise HTTPException(status_code=400, detail="No readable text found in PDF. It may be scanned or image-based.")
@@ -143,38 +161,35 @@ async def normalize_word(file: UploadFile, progress_callback: Optional[Callable[
             await progress_callback("upload", "Saving Word document...", 10)
         
         file_path = temp_dir / file.filename
-        with open(file_path, "wb") as f:
-            f.write(await file.read())
+        content = await file.read()
+        
+        def save_file():
+            with open(file_path, "wb") as f:
+                f.write(content)
+        await run_blocking(save_file)
         
         if progress_callback:
             await progress_callback("extract", "Extracting text from document...", 40)
         
-        text = ""
-        try:
+        def extract_word_text():
+            text = ""
             doc = Document(file_path)
-            total_paragraphs = len(doc.paragraphs)
-            
-            for i, paragraph in enumerate(doc.paragraphs):
+            for paragraph in doc.paragraphs:
                 if paragraph.text.strip():
                     text += paragraph.text + "\n"
-                
-                # Update progress
-                if progress_callback and total_paragraphs > 0:
-                    para_progress = 40 + int((i + 1) / total_paragraphs * 30)
-                    await progress_callback("extract", f"Processing paragraph {i+1} of {total_paragraphs}...", para_progress)
-            
-            if progress_callback:
-                await progress_callback("extract", "Extracting tables...", 75)
-            
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
                         if cell.text.strip():
                             text += cell.text + " "
                     text += "\n"
-        finally:
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            return text
+        
+        text = await run_blocking(extract_word_text)
+        
+        # Cleanup
+        if os.path.exists(file_path):
+            await run_blocking(os.remove, file_path)
         
         if not text.strip():
             raise HTTPException(status_code=400, detail="No readable text found in Word document.")

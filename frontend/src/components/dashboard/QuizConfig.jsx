@@ -82,10 +82,10 @@ function QuizConfig({ contentId, onGenerate, loading }) {
       {/* Header */}
       <div className="text-center">
         <h3 className="text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-1">
-          Quiz Configuration
+          Quiz Settings
         </h3>
-        <p className="text-slate-600 font-medium text-xs">
-          Customize your quiz settings
+        <p className="text-slate-600 text-xs">
+          Configure quiz parameters
         </p>
       </div>
 
@@ -222,7 +222,7 @@ function QuizConfig({ contentId, onGenerate, loading }) {
               </svg>
             </div>
             <div className="flex-1">
-              <p className="text-xs text-yellow-800 font-semibold mb-0.5">⚠️ Large Question Count</p>
+              <p className="text-xs text-yellow-800 font-semibold mb-0.5">Large Question Count</p>
               <p className="text-xs text-yellow-700">
                 For long content, use 5-7 questions to avoid API limits. Higher counts may fail.
               </p>

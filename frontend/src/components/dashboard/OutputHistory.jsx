@@ -143,8 +143,7 @@ function OutputHistory({ contentId, onSelectOutput }) {
       const baseInfo = `${options.number_of_questions || 10} Q • ${options.difficulty || 'Medium'}`
       const modeInfo = options.mode ? ` • ${options.mode}` : ''
       if (score) {
-        const scoreColor = score.percentage >= 80 ? '🟢' : score.percentage >= 60 ? '🟡' : '🔴'
-        return `${baseInfo}${modeInfo} • ${scoreColor} ${score.percentage}% (${score.correct}/${score.total})`
+        return `${baseInfo}${modeInfo} • ${score.percentage}% (${score.correct}/${score.total})`
       }
       return `${baseInfo}${modeInfo}`
     }
@@ -239,7 +238,7 @@ function OutputHistory({ contentId, onSelectOutput }) {
                             output.score.percentage >= 60 ? 'bg-yellow-100 text-yellow-700' :
                             'bg-red-100 text-red-700'
                           }`}>
-                            {output.score.percentage >= 80 ? '✓' : output.score.percentage >= 60 ? '◐' : '✗'} {output.score.percentage}%
+                            {output.score.percentage}%
                           </span>
                         </div>
                       )}

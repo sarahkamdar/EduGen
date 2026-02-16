@@ -44,10 +44,10 @@ const HomePage = ({ onNavigateToAuth }) => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-900 mb-4">
-              Powerful Features for Smarter Learning
+              Features
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-              Everything you need to transform content into active learning experiences
+              Tools to convert content into study materials
             </p>
           </div>
 
@@ -142,7 +142,7 @@ const HomePage = ({ onNavigateToAuth }) => {
               How It Works
             </h2>
             <p className="text-lg text-slate-600">
-              Four simple steps to transform your learning
+              Four steps to get started
             </p>
           </div>
 
@@ -163,9 +163,9 @@ const HomePage = ({ onNavigateToAuth }) => {
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl font-bold text-white">2</span>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">AI Processes & Understands</h3>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">AI Processes Content</h3>
               <p className="text-slate-600">
-                Advanced AI analyzes your content
+                Text extraction and analysis
               </p>
             </div>
 
@@ -185,9 +185,9 @@ const HomePage = ({ onNavigateToAuth }) => {
               <div className="w-16 h-16 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl font-bold text-white">4</span>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">Learn & Test Yourself</h3>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Study & Review</h3>
               <p className="text-slate-600">
-                Revise and track your progress
+                Use generated materials
               </p>
             </div>
           </div>
@@ -199,10 +199,10 @@ const HomePage = ({ onNavigateToAuth }) => {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-slate-900 mb-4">
-              Why Choose EduGen?
+              Why EduGen?
             </h2>
             <p className="text-lg text-slate-600">
-              Built for students who want to learn smarter, not harder
+              Built for efficient studying
             </p>
           </div>
 
@@ -234,7 +234,7 @@ const HomePage = ({ onNavigateToAuth }) => {
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">Active Learning</h3>
                 <p className="text-slate-600">
-                  Convert passive content consumption into interactive learning experiences
+                  Generate interactive study materials from any content
                 </p>
               </div>
             </div>
@@ -294,10 +294,10 @@ const HomePage = ({ onNavigateToAuth }) => {
       <section className="py-20 px-6 lg:px-8 bg-gradient-to-br from-indigo-600 to-violet-600">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-white mb-6">
-            Start Learning Smarter with EduGen
+            Get Started with EduGen
           </h2>
           <p className="text-xl text-indigo-100 mb-8">
-            Join students who are transforming the way they learn
+            Create an account to begin
           </p>
           <button
             onClick={onNavigateToAuth}
@@ -316,7 +316,7 @@ const HomePage = ({ onNavigateToAuth }) => {
               EduGen
             </h3>
             <p className="text-slate-400 mb-6">
-              Transform Any Content Into Structured Learning
+              Content to Learning Materials
             </p>
             <div className="flex items-center justify-center gap-6 text-sm text-slate-500">
               <span>Privacy Policy</span>

@@ -43,26 +43,15 @@ function PPTPreview({ resultData, onClose }) {
 
   return (
     <div className="space-y-4">
-      {/* Header with Download Button */}
+      {/* Header */}
       <div className="bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-1">
-              {slideStructure.title}
-            </h3>
-            {slideStructure.subtitle && (
-              <p className="text-sm text-slate-600">{slideStructure.subtitle}</p>
-            )}
-          </div>
-          <button
-            onClick={handleDownload}
-            className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download PPTX
-          </button>
+        <div className="mb-4">
+          <h3 className="text-2xl font-bold text-slate-900 mb-1">
+            {slideStructure.title}
+          </h3>
+          {slideStructure.subtitle && (
+            <p className="text-sm text-slate-600">{slideStructure.subtitle}</p>
+          )}
         </div>
 
         {/* Presentation Info */}
@@ -106,7 +95,7 @@ function PPTPreview({ resultData, onClose }) {
 
                 {/* Slide Content */}
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full bg-orange-100 text-orange-700 uppercase">
                       {slide.slide_type}
                     </span>
@@ -115,7 +104,47 @@ function PPTPreview({ resultData, onClose }) {
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        {slide.image_keyword}
+                        Image
+                      </span>
+                    )}
+                    {slide.paragraph && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-100 text-indigo-700">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                        </svg>
+                        Paragraph
+                      </span>
+                    )}
+                    {slide.formula && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-cyan-100 text-cyan-700">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        Formula
+                      </span>
+                    )}
+                    {slide.highlight && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-yellow-100 text-yellow-700">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                        </svg>
+                        Highlight
+                      </span>
+                    )}
+                    {slide.flow_diagram && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-purple-100 text-purple-700">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Flow Diagram
+                      </span>
+                    )}
+                    {slide.table_data && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Table
                       </span>
                     )}
                   </div>
@@ -130,8 +159,47 @@ function PPTPreview({ resultData, onClose }) {
                     </p>
                   )}
 
+                  {slide.highlight && (
+                    <div className="mb-3 bg-gradient-to-r from-yellow-100 to-orange-100 rounded-lg p-3 border-2 border-yellow-300">
+                      <p className="text-lg font-bold text-orange-800 text-center">
+                        {slide.highlight}
+                      </p>
+                    </div>
+                  )}
+
+                  {slide.paragraph && (
+                    <div className="mb-3 bg-indigo-50 rounded-lg p-3 border border-indigo-200">
+                      <p className="text-sm text-indigo-900 leading-relaxed italic">
+                        "{slide.paragraph}"
+                      </p>
+                    </div>
+                  )}
+
+                  {slide.formula && (
+                    <div className="mb-3 bg-cyan-50 rounded-lg p-4 border-2 border-cyan-300">
+                      <p className="text-xs font-semibold text-cyan-700 mb-1">Formula:</p>
+                      <p className="text-xl font-bold text-cyan-900 text-center font-mono">
+                        {slide.formula}
+                      </p>
+                    </div>
+                  )}
+
+                  {slide.flow_diagram && slide.steps && slide.steps.length > 0 && (
+                    <div className="mb-3 bg-purple-50 rounded-lg p-3 border border-purple-200">
+                      <p className="text-xs font-semibold text-purple-700 mb-2">Process Flow:</p>
+                      <ol className="space-y-1">
+                        {slide.steps.map((step, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-xs text-purple-900">
+                            <span className="font-bold">{idx + 1}.</span>
+                            <span>{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+
                   {slide.points && slide.points.length > 0 && (
-                    <ul className="space-y-1">
+                    <ul className="space-y-1 mb-2">
                       {slide.points.map((point, idx) => (
                         <li key={idx} className="flex items-start gap-2 text-sm text-slate-700">
                           <span className="text-orange-500 mt-1">•</span>
@@ -139,6 +207,17 @@ function PPTPreview({ resultData, onClose }) {
                         </li>
                       ))}
                     </ul>
+                  )}
+
+                  {slide.table_data && (
+                    <div className="mt-2 bg-green-50 rounded-lg p-2 border border-green-200">
+                      <p className="text-xs font-semibold text-green-700 mb-1">
+                        Table: {slide.table_data.headers?.join(' | ')}
+                      </p>
+                      <p className="text-xs text-green-600">
+                        {slide.table_data.rows?.length || 0} rows
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -171,23 +250,12 @@ function PPTPreview({ resultData, onClose }) {
       </div>
 
       {/* Info Note */}
-      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div className="flex-1">
-            <p className="text-sm text-slate-700 font-semibold mb-1">
-              💡 Your Presentation is Ready!
-            </p>
-            <ul className="text-xs text-slate-600 space-y-1">
-              <li>• Click "Download Presentation" to save the PPTX file</li>
-              <li>• Open with Microsoft PowerPoint, Google Slides, or Keynote</li>
-              <li>• Fully editable - customize colors, fonts, images, and content</li>
-              <li>• All images are from free stock photo APIs (Unsplash/Pexels)</li>
-            </ul>
-          </div>
-        </div>
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+        <ul className="text-xs text-slate-600 space-y-1">
+          <li>• Download as PPTX file</li>
+          <li>• Compatible with PowerPoint, Google Slides, Keynote</li>
+          <li>• Editable content and styling</li>
+        </ul>
       </div>
     </div>
   )

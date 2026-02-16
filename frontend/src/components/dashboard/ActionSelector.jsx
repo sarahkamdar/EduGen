@@ -81,10 +81,10 @@ function ActionSelector({ contentId, onGenerate, chatbotHistory }) {
       {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
-          Choose Your Action
+          Select Action
         </h2>
-        <p className="text-slate-600 font-medium text-sm">
-          Select what you'd like to generate from your content
+        <p className="text-slate-600 text-sm">
+          Generate learning materials from your content
         </p>
       </div>
 

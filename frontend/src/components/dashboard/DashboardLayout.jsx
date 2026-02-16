@@ -79,7 +79,8 @@ function DashboardLayout() {
     sidebarOpen: true,         // Sidebar visibility
     processingStage: 'upload', // Current processing stage
     processingMessage: 'Processing...', // Current status message
-    processingPercentage: 0    // Progress percentage (0-100)
+    processingPercentage: 0,   // Progress percentage (0-100)
+    processingInputType: null  // Type of content being processed
   })
 
   // ==================== RESULTS STATE ====================
@@ -141,33 +142,48 @@ function DashboardLayout() {
    * Upload new content with real-time progress updates
    */
   const handleUpload = async (formData) => {
+    // Determine input type for progress display
+    let inputType = 'file'
+    if (formData.has('youtube_url')) {
+      inputType = 'youtube'
+    } else if (formData.has('text')) {
+      inputType = 'text'
+    } else if (formData.has('file')) {
+      const file = formData.get('file')
+      const ext = file.name?.split('.').pop()?.toLowerCase()
+      if (['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv'].includes(ext)) {
+        inputType = 'video'
+      } else if (ext === 'pdf') {
+        inputType = 'pdf'
+      } else if (['doc', 'docx'].includes(ext)) {
+        inputType = 'word'
+      }
+    }
+
     // Start processing
     setUi(prev => ({ 
       ...prev, 
       isProcessing: true, 
       processingStage: 'start',
-      processingMessage: 'Starting upload...',
-      processingPercentage: 0
+      processingMessage: 'Starting...',
+      processingPercentage: 0,
+      processingInputType: inputType
     }))
     setErrors({ uploadError: '', generateError: '' })
 
     try {
       const token = localStorage.getItem('token')
       
-      // Check if it's a file upload (PDF, Word, Video)
-      const hasFile = formData.has('file')
-      
-      if (hasFile) {
-        // For file uploads, use SSE streaming endpoint
-        const response = await fetch('/content/upload-stream', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        })
+      // Use SSE streaming endpoint for all uploads (real-time progress)
+      const response = await fetch('/content/upload-stream', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
 
-        if (!response.ok) {
+      if (!response.ok) {
           if (response.status === 401) {
             handleUnauthorized()
             return
@@ -196,11 +212,12 @@ function DashboardLayout() {
                 const data = JSON.parse(line.slice(6))
                 
                 // Update UI with real-time progress
+                // Skip percentage update if -1 (keepalive signal)
                 setUi(prev => ({
                   ...prev,
                   processingStage: data.stage,
                   processingMessage: data.message,
-                  processingPercentage: data.percentage
+                  processingPercentage: data.percentage >= 0 ? data.percentage : prev.processingPercentage
                 }))
 
                 // Handle completion
@@ -235,71 +252,6 @@ function DashboardLayout() {
         } else {
           throw new Error('Upload completed but no content ID received')
         }
-      } else {
-        // For text/YouTube, use regular endpoint with simulated progress
-        const stages = ['upload', 'extract', 'transcribe', 'finalize']
-        const messages = [
-          'Processing input...',
-          'Extracting content...',
-          'Analyzing text...',
-          'Finalizing...'
-        ]
-        
-        // Start progress simulation
-        let currentStage = 0
-        const progressInterval = setInterval(() => {
-          if (currentStage < stages.length) {
-            setUi(prev => ({
-              ...prev,
-              processingStage: stages[currentStage],
-              processingMessage: messages[currentStage],
-              processingPercentage: Math.min(95, (currentStage + 1) * 25)
-            }))
-            currentStage++
-          }
-        }, 500)
-
-        const response = await fetch('/content/upload', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        })
-
-        clearInterval(progressInterval)
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            handleUnauthorized()
-            return
-          }
-          const data = await response.json().catch(() => ({ detail: 'Upload failed' }))
-          throw new Error(data.detail || 'Upload failed')
-        }
-
-        const data = await response.json()
-        
-        // Show completion
-        setUi(prev => ({
-          ...prev,
-          processingStage: 'complete',
-          processingMessage: 'Content processed successfully!',
-          processingPercentage: 100
-        }))
-
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        // Save content data
-        setContent({
-          contentId: data.content_id,
-          inputType: data.input_type || 'unknown',
-          normalizedTextStatus: 'ready'
-        })
-
-        // Refresh history
-        await fetchHistory()
-      }
     } catch (error) {
       setErrors(prev => ({ ...prev, uploadError: error.message }))
     } finally {
@@ -308,7 +260,8 @@ function DashboardLayout() {
         isProcessing: false, 
         processingStage: 'upload',
         processingMessage: 'Processing...',
-        processingPercentage: 0
+        processingPercentage: 0,
+        processingInputType: null
       }))
     }
   }
@@ -607,7 +560,7 @@ function DashboardLayout() {
             aria-label="Toggle sidebar"
           >
             <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
           <h2 className="text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -659,6 +612,7 @@ function DashboardLayout() {
               stage={ui.processingStage}
               message={ui.processingMessage}
               percentage={ui.processingPercentage}
+              inputType={ui.processingInputType}
             />
           ) : (
             /* Initial Upload Screen */

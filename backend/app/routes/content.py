@@ -84,7 +84,6 @@ async def upload_content_stream(
         youtube_url = form.get('youtube_url')
         text = form.get('text')
     except Exception as e:
-        # Return error immediately if form parsing fails
         async def error_gen():
             error_data = json.dumps({
                 "stage": "error",
@@ -103,33 +102,25 @@ async def upload_content_stream(
             }
         )
     
-    async def generate_progress():
-        # List to collect progress events
-        progress_events = []
-        
-        # Progress callback that collects events
-        async def progress_callback(stage: str, message: str, percentage: int):
-            progress_events.append({
-                "stage": stage,
-                "message": message,
-                "percentage": percentage
-            })
-        
-        # Process content with progress tracking
+    # Use asyncio.Queue for real-time event streaming
+    progress_queue = asyncio.Queue()
+    
+    async def progress_callback(stage: str, message: str, percentage: int):
+        """Callback that puts events in queue immediately for real-time streaming"""
+        await progress_queue.put({
+            "stage": stage,
+            "message": message,
+            "percentage": percentage
+        })
+    
+    async def process_and_signal():
+        """Process content and signal completion/error via queue"""
         try:
-            # Start yielding initial progress
-            yield f"data: {json.dumps({'stage': 'start', 'message': 'Starting...', 'percentage': 0})}\n\n"
-            
             input_type, normalized_text = await process_content_with_progress(
                 file, youtube_url, text, progress_callback
             )
             
-            # Yield all collected progress events
-            for event in progress_events:
-                yield f"data: {json.dumps(event)}\n\n"
-                await asyncio.sleep(0.05)
-            
-            # Generate meaningful title
+            # Generate title
             title = None
             if file:
                 title = file.filename.rsplit('.', 1)[0][:100] if hasattr(file, 'filename') and file.filename else f"{input_type.capitalize()} Document"
@@ -151,24 +142,55 @@ async def upload_content_stream(
             
             content_id = create_content(content_data)
             
-            # Send success event
-            success_data = json.dumps({
+            # Signal completion
+            await progress_queue.put({
                 "stage": "complete",
                 "message": "Content processed successfully!",
                 "percentage": 100,
                 "content_id": content_id,
                 "input_type": input_type
             })
-            yield f"data: {success_data}\n\n"
             
         except Exception as e:
-            # Send error event
-            error_data = json.dumps({
+            await progress_queue.put({
                 "stage": "error",
                 "message": str(e),
                 "percentage": 0
             })
-            yield f"data: {error_data}\n\n"
+    
+    async def generate_progress():
+        """Generator that yields SSE events in real-time from queue"""
+        # Send initial event
+        yield f"data: {json.dumps({'stage': 'start', 'message': 'Starting...', 'percentage': 0})}\n\n"
+        
+        # Start processing task
+        task = asyncio.create_task(process_and_signal())
+        
+        try:
+            while True:
+                try:
+                    # Wait for next event with timeout
+                    event = await asyncio.wait_for(progress_queue.get(), timeout=60.0)
+                    yield f"data: {json.dumps(event)}\n\n"
+                    
+                    # Check if processing is done
+                    if event.get("stage") in ("complete", "error"):
+                        break
+                        
+                except asyncio.TimeoutError:
+                    # Send keepalive
+                    yield f"data: {json.dumps({'stage': 'processing', 'message': 'Still processing...', 'percentage': -1})}\n\n"
+                    
+                    # Check if task is done but we missed the event
+                    if task.done():
+                        break
+        finally:
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
     
     return StreamingResponse(
         generate_progress(),
@@ -425,6 +447,34 @@ async def get_content_history(current_user: dict = Depends(get_current_user)):
             })
         
         return {"history": history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{content_id}/source")
+async def get_content_source(
+    content_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get the full source content including normalized text (transcript/content)"""
+    try:
+        content = get_content_by_id(content_id)
+        
+        if not content:
+            raise HTTPException(status_code=404, detail="Content not found")
+        
+        if content["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        return {
+            "content_id": str(content["_id"]),
+            "input_type": content["input_type"],
+            "title": content.get("title") or f"{content['input_type'].capitalize()} Content",
+            "normalized_text": content["normalized_text"],
+            "created_at": content["created_at"],
+            "youtube_url": content.get("youtube_url")
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

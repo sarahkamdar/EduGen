@@ -362,7 +362,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           <p className="text-slate-600 text-sm font-semibold mb-2">No flashcards generated</p>
           {resultData.flashcards?.raw_response && (
             <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-xs text-yellow-800 font-semibold mb-1">⚠️ Generation Error</p>
+              <p className="text-xs text-yellow-800 font-semibold mb-1">Generation Error</p>
               <p className="text-xs text-yellow-700">The AI returned invalid JSON. Try generating again.</p>
             </div>
           )}
@@ -397,17 +397,48 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
 
         {/* Flashcard display */}
         <div
-          className={`relative bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-xl p-8 min-h-[300px] cursor-pointer transition-transform hover:scale-[1.02]`}
+          className={`relative rounded-xl p-8 min-h-[300px] cursor-pointer transition-all duration-300 hover:scale-[1.02] ${
+            flippedCards[currentCard]
+              ? 'bg-gradient-to-br from-emerald-50 to-teal-100 border-2 border-emerald-300 shadow-lg shadow-emerald-100'
+              : 'bg-gradient-to-br from-violet-50 to-purple-100 border-2 border-purple-300 shadow-lg shadow-purple-100'
+          }`}
           onClick={() => toggleFlip(currentCard)}
         >
+          {/* Front/Back indicator with icon */}
+          <div className="absolute top-4 left-4 flex items-center gap-2">
+            {flippedCards[currentCard] ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 rounded-full">
+                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-xs font-bold text-white">ANSWER</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 rounded-full">
+                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-xs font-bold text-white">QUESTION</span>
+              </div>
+            )}
+          </div>
+
+          {/* Card number */}
           <div className="absolute top-4 right-4">
-            <span className="px-2 py-1 bg-white/80 rounded-full text-xs font-semibold text-slate-700">
-              {flippedCards[currentCard] ? 'Back' : 'Front'}
+            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+              flippedCards[currentCard] 
+                ? 'bg-emerald-200 text-emerald-800' 
+                : 'bg-purple-200 text-purple-800'
+            }`}>
+              #{currentCard + 1}
             </span>
           </div>
 
-          <div className="flex items-center justify-center min-h-[250px] px-6">
-            <div className="text-base text-slate-800 text-center leading-relaxed max-w-2xl">
+          {/* Content */}
+          <div className="flex items-center justify-center min-h-[220px] px-6 mt-6">
+            <div className={`text-lg font-medium text-center leading-relaxed max-w-2xl ${
+              flippedCards[currentCard] ? 'text-emerald-900' : 'text-purple-900'
+            }`}>
               {formatText(flippedCards[currentCard] 
                 ? flashcards[currentCard].back 
                 : flashcards[currentCard].front
@@ -415,8 +446,18 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
             </div>
           </div>
 
+          {/* Flip indicator */}
           <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-            <p className="text-xs text-slate-500 italic">Click to flip</p>
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${
+              flippedCards[currentCard] 
+                ? 'bg-emerald-200/60 text-emerald-700' 
+                : 'bg-purple-200/60 text-purple-700'
+            }`}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="text-xs font-semibold">Tap to flip</span>
+            </div>
           </div>
         </div>
 
@@ -427,14 +468,14 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
             disabled={currentCard === 0}
             className="flex-1 px-4 py-2.5 bg-white border-2 border-slate-300 text-slate-700 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors text-sm"
           >
-            ← Previous
+            Previous
           </button>
           <button
             onClick={() => setCurrentCard(Math.min(flashcards.length - 1, currentCard + 1))}
             disabled={currentCard === flashcards.length - 1}
             className={`flex-1 px-4 py-2.5 bg-gradient-to-r ${colors.button} text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm`}
           >
-            Next →
+            Next
           </button>
         </div>
       </div>
@@ -474,12 +515,12 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
       const rawResponse = resultData.quiz?.raw_response || 'Unknown error'
       
       // Determine error type for better user guidance
-      let errorTitle = '⚠️ Generation Error'
+      let errorTitle = 'Generation Error'
       let errorMessage = 'The AI could not generate quiz questions. Please try again.'
       let errorSuggestions = []
       
       if (rawResponse.includes('Empty response')) {
-        errorTitle = '🚫 Empty Response'
+        errorTitle = 'Empty Response'
         errorMessage = 'The AI model returned an empty response.'
         errorSuggestions = [
           'The content might be too long - try uploading a smaller document',
@@ -487,14 +528,14 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           'Try reducing the number of questions'
         ]
       } else if (rawResponse.includes('content_filter')) {
-        errorTitle = '🔒 Content Filtered'
+        errorTitle = 'Content Filtered'
         errorMessage = 'The AI model filtered the content.'
         errorSuggestions = [
           'Your content may contain sensitive information',
           'Try uploading different content'
         ]
       } else if (rawResponse.includes('cut off') || rawResponse.includes('truncated') || rawResponse.includes('incomplete')) {
-        errorTitle = '📏 Response Incomplete'
+        errorTitle = 'Response Incomplete'
         errorMessage = 'The AI response was cut off mid-generation.'
         errorSuggestions = [
           'Reduce the number of questions (try 5-7 instead of 10)',
@@ -502,7 +543,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           'The free API has token limits that were exceeded'
         ]
       } else if (rawResponse.includes('length')) {
-        errorTitle = '📏 Content Too Long'
+        errorTitle = 'Content Too Long'
         errorMessage = 'The response was truncated due to length.'
         errorSuggestions = [
           'Reduce the number of questions',
@@ -510,10 +551,10 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           'Try using only the first few pages of your content'
         ]
       } else if (rawResponse.includes('Error:')) {
-        errorTitle = '❌ API Error'
+        errorTitle = 'API Error'
         errorMessage = rawResponse
       } else if (rawResponse.includes('parse') || rawResponse.includes('malformed')) {
-        errorTitle = '⚙️ Parsing Error'
+        errorTitle = 'Parsing Error'
         errorMessage = 'Failed to process the AI response.'
         errorSuggestions = [
           'Try generating again with fewer questions',
@@ -535,7 +576,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           
           {errorSuggestions.length > 0 && (
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-              <p className="text-xs font-semibold text-blue-900 mb-2">💡 Suggestions:</p>
+              <p className="text-xs font-semibold text-blue-900 mb-2">Suggestions:</p>
               <ul className="text-xs text-blue-800 space-y-1">
                 {errorSuggestions.map((suggestion, idx) => (
                   <li key={idx} className="flex items-start gap-2">
@@ -586,7 +627,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           {/* Mode badge */}
           <div className="flex items-center justify-between">
             <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border-2 border-blue-300">
-              📚 Practice Mode - Study Guide
+              Practice Mode
             </span>
             <span className="text-xs text-slate-500 font-medium">
               {quiz.length} Questions
@@ -634,7 +675,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
                             {formatText(value)}
                           </div>
                           {isCorrectOption && (
-                            <span className="flex-shrink-0 text-green-600 font-semibold text-xs">✓ Correct</span>
+                            <span className="flex-shrink-0 text-green-600 font-semibold text-xs">Correct</span>
                           )}
                         </div>
                       </div>
@@ -664,7 +705,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
         {/* Mode badge */}
         <div className="flex items-center justify-between">
           <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border-2 border-red-300">
-            📝 Test Mode
+            Test Mode
           </span>
           {showResults && (
             <span className="text-xs text-slate-500 font-medium">
@@ -799,7 +840,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           <div className="space-y-2">
             {Object.keys(userAnswers).length === quiz.length && (
               <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
-                <p className="text-xs text-yellow-800 font-semibold mb-1">⚠️ Ready to Submit Test?</p>
+                <p className="text-xs text-yellow-800 font-semibold mb-1">Ready to Submit Test?</p>
                 <p className="text-xs text-yellow-700">You won't be able to change your answers after submission.</p>
               </div>
             )}
@@ -809,7 +850,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
               className={`w-full px-4 py-3 bg-gradient-to-r ${colors.button} text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm`}
             >
               {Object.keys(userAnswers).length === quiz.length
-                ? '📝 Submit Test'
+                ? 'Submit Test'
                 : `Answer All Questions (${Object.keys(userAnswers).length}/${quiz.length})`
               }
             </button>

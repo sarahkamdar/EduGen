@@ -77,10 +77,10 @@ function FlashcardConfig({ contentId, onGenerate, loading }) {
       {/* Header */}
       <div className="text-center">
         <h3 className="text-lg font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
-          Flashcard Configuration
+          Flashcard Settings
         </h3>
-        <p className="text-slate-600 font-medium text-xs">
-          Choose your flashcard format
+        <p className="text-slate-600 text-xs">
+          Select flashcard type
         </p>
       </div>
 

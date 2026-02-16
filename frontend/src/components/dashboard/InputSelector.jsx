@@ -128,8 +128,8 @@ function InputSelector({ onSubmit, loading }) {
               rows={8}
               className="w-full px-4 py-3 bg-gradient-to-br from-slate-50 to-blue-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 placeholder-slate-400 transition-all"
             />
-            <p className="text-sm text-slate-600 mt-3 font-medium">
-              💡 You can enter a topic or paste detailed text.
+            <p className="text-sm text-slate-500 mt-3">
+              Enter a topic name or paste text content.
             </p>
           </div>
         )}

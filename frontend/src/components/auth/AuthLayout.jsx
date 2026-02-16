@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import Login from './Login'
 import Signup from './Signup'
+import Logo from '../common/Logo'
 
 function AuthLayout() {
   const [isLogin, setIsLogin] = useState(true)
@@ -8,9 +9,8 @@ function AuthLayout() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-1.5">EduGen</h1>
-          <p className="text-slate-600 font-medium text-sm">AI-Powered Educational Platform</p>
+        <div className="flex justify-center mb-6">
+          <Logo size="lg" />
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-xl border-2 border-white overflow-hidden">
