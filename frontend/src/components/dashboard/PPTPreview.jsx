@@ -1,4 +1,15 @@
-import React from 'react'
+﻿import React from 'react'
+
+const getSlideLabel = (slide) => {
+  if (slide.slide_type === 'title') return 'Title'
+  if (slide.slide_type === 'section') return 'Section'
+  if (slide.formula) return 'Formula'
+  if (slide.flow_diagram) return 'Flow'
+  if (slide.table_data) return 'Table'
+  if (slide.image_keyword) return 'Image'
+  if (slide.paragraph) return 'Quote'
+  return 'Content'
+}
 
 function PPTPreview({ resultData, onClose }) {
   const handleDownload = async () => {
@@ -35,191 +46,156 @@ function PPTPreview({ resultData, onClose }) {
 
   if (!slideStructure) {
     return (
-      <div className="bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-xl p-8 text-center">
-        <p className="text-slate-600">No presentation data available</p>
+      <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-8 text-center">
+        <p className="text-[#6B7280] text-sm">No presentation data available</p>
       </div>
     )
   }
 
+  const slideCount = slideStructure.slides?.length || 0
+
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-orange-50 to-red-50 border-2 border-orange-200 rounded-xl p-6">
-        <div className="mb-4">
-          <h3 className="text-2xl font-bold text-slate-900 mb-1">
-            {slideStructure.title}
-          </h3>
-          {slideStructure.subtitle && (
-            <p className="text-sm text-slate-600">{slideStructure.subtitle}</p>
-          )}
-        </div>
+      {/* Header card */}
+      <div
+        className="rounded-[12px] overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #1E3A8A 0%, #0F1F5C 100%)',
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(135deg, #1E3A8A 0%, #0F1F5C 100%)',
+          backgroundSize: '22px 22px, cover',
+          boxShadow: '0 4px 24px rgba(30,58,138,0.18)',
+        }}
+      >
+        <div className="px-6 pt-6 pb-5">
+          {/* Presentation icon + title */}
+          <div className="flex items-start gap-4 mb-5">
+            <div className="w-12 h-12 rounded-[10px] bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white leading-tight mb-0.5">
+                {slideStructure.title}
+              </h3>
+              {slideStructure.subtitle && (
+                <p className="text-sm text-blue-200">{slideStructure.subtitle}</p>
+              )}
+            </div>
+          </div>
 
-        {/* Presentation Info */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white/70 rounded-lg p-3 border border-orange-200">
-            <p className="text-xs text-slate-600 mb-1">Slides</p>
-            <p className="text-lg font-bold text-slate-900">{slideStructure.slides?.length || 0}</p>
-          </div>
-          <div className="bg-white/70 rounded-lg p-3 border border-orange-200">
-            <p className="text-xs text-slate-600 mb-1">Theme</p>
-            <p className="text-lg font-bold text-slate-900 capitalize">{resultData.options?.theme || 'Modern'}</p>
-          </div>
-          <div className="bg-white/70 rounded-lg p-3 border border-orange-200">
-            <p className="text-xs text-slate-600 mb-1">Images</p>
-            <p className="text-lg font-bold text-slate-900">{resultData.options?.include_images ? 'Yes' : 'No'}</p>
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+              <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Slides</p>
+              <p className="text-xl font-bold text-white">{slideCount}</p>
+            </div>
+            <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+              <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Theme</p>
+              <p className="text-sm font-semibold text-white capitalize">{resultData.options?.theme || 'Modern'}</p>
+            </div>
+            <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+              <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Images</p>
+              <p className="text-sm font-semibold text-white">{resultData.options?.include_images ? '✓ Yes' : '✗ No'}</p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Slide Preview */}
-      <div className="bg-white border-2 border-orange-200 rounded-xl p-6">
-        <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-          </svg>
-          Slide Preview
-        </h4>
+      <div className="bg-white border border-[#C7D2FE] rounded-[12px] overflow-hidden" style={{ boxShadow: '0 2px 12px rgba(99,102,241,0.07)' }}>
+        <div className="px-5 py-3.5 border-b border-[#EEF2FF] flex items-center gap-2" style={{ backgroundColor: '#F8F9FF' }}>
+          <span className="w-2 h-2 rounded-full bg-[#6366F1]"></span>
+          <h4 className="text-sm font-semibold text-[#1E1B4B]">Slide Preview</h4>
+          <span className="ml-auto text-xs text-[#9CA3AF]">{slideCount} slides</span>
+        </div>
 
-        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+        <div className="space-y-2.5 max-h-[560px] overflow-y-auto p-4">
           {slideStructure.slides?.map((slide, index) => (
             <div
               key={index}
-              className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+              className="rounded-[10px] overflow-hidden border border-[#C7D2FE] hover:border-[#A5B4FC] transition-all bg-white"
             >
-              <div className="flex items-start gap-3">
-                {/* Slide Number */}
-                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center text-white font-bold">
+              {/* Slide header strip */}
+              <div className="px-4 py-2 flex items-center gap-2.5 bg-[#EEF2FF] border-b border-[#C7D2FE]">
+                <div className="w-6 h-6 rounded-[5px] bg-[#1E3A8A] flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
                   {index + 1}
                 </div>
-
-                {/* Slide Content */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full bg-orange-100 text-orange-700 uppercase">
-                      {slide.slide_type}
-                    </span>
-                    {slide.image_keyword && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-blue-100 text-blue-700">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        Image
-                      </span>
-                    )}
-                    {slide.paragraph && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-100 text-indigo-700">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-                        </svg>
-                        Paragraph
-                      </span>
-                    )}
-                    {slide.formula && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-cyan-100 text-cyan-700">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                        Formula
-                      </span>
-                    )}
-                    {slide.highlight && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-yellow-100 text-yellow-700">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                        </svg>
-                        Highlight
-                      </span>
-                    )}
-                    {slide.flow_diagram && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-purple-100 text-purple-700">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        Flow Diagram
-                      </span>
-                    )}
-                    {slide.table_data && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                        Table
-                      </span>
-                    )}
-                  </div>
-
-                  <h5 className="text-base font-bold text-slate-900 mb-2">
-                    {slide.heading}
-                  </h5>
-
-                  {slide.subtitle && (
-                    <p className="text-sm text-slate-600 mb-2 italic">
-                      {slide.subtitle}
-                    </p>
+                <h5 className="text-sm font-semibold flex-1 truncate text-[#1E1B4B]">
+                  {slide.heading}
+                </h5>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-white text-[#1E3A8A] border border-[#A5B4FC]">
+                    {getSlideLabel(slide)}
+                  </span>
+                  {slide.image_keyword && slide.slide_type !== 'image' && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white text-[#6B7280] border border-[#D1D5DB]">Img</span>
                   )}
-
-                  {slide.highlight && (
-                    <div className="mb-3 bg-gradient-to-r from-yellow-100 to-orange-100 rounded-lg p-3 border-2 border-yellow-300">
-                      <p className="text-lg font-bold text-orange-800 text-center">
-                        {slide.highlight}
-                      </p>
-                    </div>
-                  )}
-
-                  {slide.paragraph && (
-                    <div className="mb-3 bg-indigo-50 rounded-lg p-3 border border-indigo-200">
-                      <p className="text-sm text-indigo-900 leading-relaxed italic">
-                        "{slide.paragraph}"
-                      </p>
-                    </div>
-                  )}
-
                   {slide.formula && (
-                    <div className="mb-3 bg-cyan-50 rounded-lg p-4 border-2 border-cyan-300">
-                      <p className="text-xs font-semibold text-cyan-700 mb-1">Formula:</p>
-                      <p className="text-xl font-bold text-cyan-900 text-center font-mono">
-                        {slide.formula}
-                      </p>
-                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white text-[#6B7280] border border-[#D1D5DB]">Fx</span>
                   )}
-
-                  {slide.flow_diagram && slide.steps && slide.steps.length > 0 && (
-                    <div className="mb-3 bg-purple-50 rounded-lg p-3 border border-purple-200">
-                      <p className="text-xs font-semibold text-purple-700 mb-2">Process Flow:</p>
-                      <ol className="space-y-1">
-                        {slide.steps.map((step, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-xs text-purple-900">
-                            <span className="font-bold">{idx + 1}.</span>
-                            <span>{step}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
-
-                  {slide.points && slide.points.length > 0 && (
-                    <ul className="space-y-1 mb-2">
-                      {slide.points.map((point, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-slate-700">
-                          <span className="text-orange-500 mt-1">•</span>
-                          <span>{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
                   {slide.table_data && (
-                    <div className="mt-2 bg-green-50 rounded-lg p-2 border border-green-200">
-                      <p className="text-xs font-semibold text-green-700 mb-1">
-                        Table: {slide.table_data.headers?.join(' | ')}
-                      </p>
-                      <p className="text-xs text-green-600">
-                        {slide.table_data.rows?.length || 0} rows
-                      </p>
-                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white text-[#6B7280] border border-[#D1D5DB]">Tbl</span>
                   )}
                 </div>
+              </div>
+
+              {/* Slide body */}
+              <div className="px-4 py-3">
+                {slide.subtitle && (
+                  <p className="text-xs text-[#6B7280] mb-2 italic">{slide.subtitle}</p>
+                )}
+
+                {slide.highlight && (
+                  <div className="mb-2 bg-[#EEF2FF] rounded-[7px] px-3 py-2 border border-[#C7D2FE]">
+                    <p className="text-sm font-semibold text-center text-[#1E3A8A]">{slide.highlight}</p>
+                  </div>
+                )}
+
+                {slide.paragraph && (
+                  <div className="mb-2 bg-[#F9FAFB] rounded-[7px] px-3 py-2 border border-[#E5E7EB]">
+                    <p className="text-xs text-[#374151] leading-relaxed italic">"{slide.paragraph}"</p>
+                  </div>
+                )}
+
+                {slide.formula && (
+                  <div className="mb-2 bg-[#F9FAFB] rounded-[7px] px-3 py-2.5 border border-[#E5E7EB] text-center">
+                    <p className="text-[10px] font-semibold text-[#6B7280] mb-1 uppercase tracking-wide">Formula</p>
+                    <p className="text-base font-mono font-bold text-[#111827]">{slide.formula}</p>
+                  </div>
+                )}
+
+                {slide.flow_diagram && slide.steps && slide.steps.length > 0 && (
+                  <div className="mb-2 bg-[#F9FAFB] rounded-[7px] px-3 py-2 border border-[#E5E7EB]">
+                    <p className="text-[10px] font-semibold text-[#6B7280] mb-1.5 uppercase tracking-wide">Process Flow</p>
+                    <div className="flex flex-wrap gap-1 items-center">
+                      {slide.steps.map((step, idx) => (
+                        <React.Fragment key={idx}>
+                          <span className="text-[10px] bg-white border border-[#C7D2FE] text-[#1E3A8A] px-2 py-0.5 rounded-full font-medium">{step}</span>
+                          {idx < slide.steps.length - 1 && <span className="text-[#9CA3AF] text-xs">→</span>}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {slide.points && slide.points.length > 0 && (
+                  <ul className="space-y-1">
+                    {slide.points.map((point, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-xs text-[#374151]">
+                        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[#1E3A8A] flex-shrink-0"></span>
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {slide.table_data && (
+                  <div className="mt-1 bg-[#F9FAFB] rounded-[7px] px-3 py-2 border border-[#E5E7EB]">
+                    <p className="text-[10px] font-semibold text-[#6B7280] mb-0.5 uppercase tracking-wide">Table · {slide.table_data.headers?.join(' / ')}</p>
+                    <p className="text-[10px] text-[#9CA3AF]">{slide.table_data.rows?.length || 0} rows</p>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -230,31 +206,33 @@ function PPTPreview({ resultData, onClose }) {
       <div className="grid grid-cols-2 gap-3">
         <button
           onClick={handleDownload}
-          className="px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+          className="px-4 py-2.5 text-white rounded-[10px] text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow"
+          style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #0F1F5C 100%)' }}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Download Presentation
+          Download .pptx
         </button>
-
         <button
           onClick={onClose}
-          className="px-4 py-3 bg-white border-2 border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+          className="px-4 py-2.5 border-2 border-[#C7D2FE] text-[#1E3A8A] bg-[#EEF2FF] rounded-[10px] text-sm font-semibold hover:bg-[#E0E7FF] transition-colors flex items-center justify-center gap-2"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           Generate New
         </button>
       </div>
 
-      {/* Info Note */}
-      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-        <ul className="text-xs text-slate-600 space-y-1">
-          <li>• Download as PPTX file</li>
-          <li>• Compatible with PowerPoint, Google Slides, Keynote</li>
-          <li>• Editable content and styling</li>
+      {/* Info note */}
+      <div className="bg-[#EFF6FF] border border-[#BAE0FD] rounded-[10px] px-4 py-3 flex items-start gap-2.5">
+        <svg className="w-4 h-4 text-[#3B82F6] flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <ul className="text-xs text-[#1E40AF] space-y-0.5">
+          <li>Compatible with PowerPoint, Google Slides, and Keynote</li>
+          <li>All content and styling is fully editable after download</li>
         </ul>
       </div>
     </div>

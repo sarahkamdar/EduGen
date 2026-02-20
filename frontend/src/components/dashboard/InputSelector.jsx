@@ -1,16 +1,46 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 
 function InputSelector({ onSubmit, loading }) {
-  const [activeTab, setActiveTab] = useState('text')
+  const [activeTab, setActiveTab] = useState('files')
   const [textInput, setTextInput] = useState('')
   const [urlInput, setUrlInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [dragActive, setDragActive] = useState(false)
 
   const tabs = [
-    { id: 'text', label: 'Text / Topic' },
-    { id: 'webpage', label: 'Webpage' },
-    { id: 'files', label: 'Files' }
+    {
+      id: 'text',
+      label: 'Text / Topic',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      ),
+      accent: '#1E3A8A',
+      activeBg: '#EEF2FF',
+    },
+    {
+      id: 'webpage',
+      label: 'Webpage / YouTube',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
+      ),
+      accent: '#1E3A8A',
+      activeBg: '#EEF2FF',
+    },
+    {
+      id: 'files',
+      label: 'Upload File',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+      ),
+      accent: '#1E3A8A',
+      activeBg: '#EEF2FF',
+    },
   ]
 
   const handleTabChange = (tabId) => {
@@ -100,24 +130,37 @@ function InputSelector({ onSubmit, loading }) {
   return (
     <div className="max-w-3xl mx-auto">
       {/* Tabs */}
-      <div className="flex gap-2 mb-8 bg-gradient-to-r from-slate-100 to-slate-200 p-2 rounded-2xl shadow-inner">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
-            className={`flex-1 py-3 px-6 rounded-xl text-sm font-semibold transition-all ${
-              activeTab === tab.id
-                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg transform scale-105'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex gap-1 mb-6 bg-[#F3F4F6] p-1 rounded-[8px]">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex-1 py-2 px-4 rounded-[6px] text-sm font-medium transition-all flex items-center justify-center gap-1.5 border ${
+                isActive
+                  ? 'bg-white shadow-sm'
+                  : 'border-transparent text-[#6B7280] hover:text-[#374151] hover:bg-white'
+              }`}
+              style={isActive ? {
+                borderColor: tab.accent,
+                color: tab.accent,
+                backgroundColor: tab.activeBg,
+              } : {}}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Input Areas */}
-      <div className="bg-white rounded-2xl border-2 border-slate-200 p-8 shadow-xl">
+      <div
+        className="bg-white rounded-[8px] overflow-hidden"
+        style={{ border: `1px solid #E5E7EB`, borderTop: `3px solid ${tabs.find(t => t.id === activeTab)?.accent || '#E5E7EB'}` }}
+      >
+        <div className="p-6">
         {/* Text / Topic Input */}
         {activeTab === 'text' && (
           <div>
@@ -126,9 +169,9 @@ function InputSelector({ onSubmit, loading }) {
               onChange={(e) => setTextInput(e.target.value)}
               placeholder="Enter a topic or paste your text here…"
               rows={8}
-              className="w-full px-4 py-3 bg-gradient-to-br from-slate-50 to-blue-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 placeholder-slate-400 transition-all"
+              className="w-full px-4 py-3 bg-white border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] resize-none text-[#111827] placeholder-[#9CA3AF] transition-colors"
             />
-            <p className="text-sm text-slate-500 mt-3">
+            <p className="text-sm text-[#6B7280] mt-3">
               Enter a topic name or paste text content.
             </p>
           </div>
@@ -142,10 +185,10 @@ function InputSelector({ onSubmit, loading }) {
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               placeholder="Paste a YouTube or webpage URL"
-              className="w-full px-4 py-3 bg-gradient-to-br from-slate-50 to-purple-50 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-slate-900 placeholder-slate-400 transition-all"
+              className="w-full px-4 py-3 bg-white border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] text-[#111827] placeholder-[#9CA3AF] transition-colors"
             />
-            <p className="text-sm text-slate-600 mt-3 font-medium">
-              🌐 We'll extract and process the content automatically.
+            <p className="text-sm text-[#6B7280] mt-3 font-medium">
+              Paste a YouTube or webpage URL. Content will be extracted automatically.
             </p>
           </div>
         )}
@@ -158,21 +201,21 @@ function InputSelector({ onSubmit, loading }) {
               onDragLeave={handleDrag}
               onDragOver={handleDrag}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+              className={`border-2 border-dashed rounded-[8px] p-12 text-center transition-colors ${
                 dragActive
-                  ? 'border-slate-900 bg-slate-50'
-                  : 'border-slate-300 hover:border-slate-400'
+                  ? 'border-[#1E3A8A] bg-[#EEF2FF]'
+                  : 'border-[#E5E7EB] hover:border-[#9CA3AF]'
               }`}
             >
               {selectedFile ? (
                 <div className="space-y-3">
-                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-16 h-16 mx-auto bg-[#EEF2FF] rounded-[8px] flex items-center justify-center">
+                    <svg className="w-8 h-8 text-[#1E3A8A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p className="font-semibold text-slate-900">{selectedFile.name}</p>
-                  <p className="text-sm text-slate-500 font-medium">
+                  <p className="font-semibold text-[#111827]">{selectedFile.name}</p>
+                  <p className="text-sm text-[#6B7280] font-medium">
                     {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                   </p>
                   <button
@@ -184,16 +227,16 @@ function InputSelector({ onSubmit, loading }) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-                    <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-16 h-16 mx-auto bg-[#EEF2FF] rounded-[8px] flex items-center justify-center">
+                    <svg className="w-8 h-8 text-[#1E3A8A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-slate-900 font-semibold mb-1">
-                      Drag and drop your file here
+                    <p className="text-[#111827] font-semibold mb-1">
+                      Drag and drop a file, or browse
                     </p>
-                    <p className="text-sm text-slate-500 mb-4">or</p>
+                    <p className="text-sm text-[#6B7280] mb-4">or</p>
                     <label className="inline-block">
                       <input
                         type="file"
@@ -201,7 +244,7 @@ function InputSelector({ onSubmit, loading }) {
                         accept=".pdf,.doc,.docx,.mp4,.avi,.mov,.mkv,.flv,.wmv"
                         className="hidden"
                       />
-                      <span className="cursor-pointer bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:from-blue-500 hover:to-purple-500 transition-all inline-block shadow-lg">
+                      <span className="cursor-pointer bg-[#1E3A8A] hover:bg-[#1C337A] text-white px-4 py-2 rounded-[8px] font-medium transition-colors inline-block text-sm">
                         Browse Files
                       </span>
                     </label>
@@ -209,8 +252,8 @@ function InputSelector({ onSubmit, loading }) {
                 </div>
               )}
             </div>
-            <p className="text-sm text-slate-600 mt-3 font-medium">
-              📎 Upload documents or videos for processing. (PDF, Word: .doc/.docx, Video: .mp4/.avi/.mov/.mkv/.flv/.wmv)
+            <p className="text-sm text-[#6B7280] mt-3">
+              Supported formats: PDF, Word (.doc/.docx), Video (.mp4 .avi .mov .mkv .flv .wmv)
             </p>
           </div>
         )}
@@ -219,7 +262,7 @@ function InputSelector({ onSubmit, loading }) {
         <button
           onClick={handleSubmit}
           disabled={!isValidInput() || loading}
-          className="w-full mt-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-blue-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-blue-600 disabled:hover:to-purple-600 shadow-lg flex items-center justify-center gap-2"
+          className="w-full mt-4 h-10 bg-[#1E3A8A] text-white px-4 rounded-[8px] font-medium hover:bg-[#1C337A] focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
         >
           {loading ? (
             <>
@@ -230,14 +273,10 @@ function InputSelector({ onSubmit, loading }) {
               Processing...
             </>
           ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Process Content
-            </>
+            'Process Content'
           )}
         </button>
+        </div>
       </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Sidebar from './Sidebar'
 import InputSelector from './InputSelector'
 import ProcessingStatus from './ProcessingStatus'
@@ -103,9 +103,37 @@ function DashboardLayout() {
   })
   const [outputHistoryRefreshKey, setOutputHistoryRefreshKey] = useState(0)
 
+  // ==================== USER STATE ====================
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef(null)
+
+  const getUsername = () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return 'User'
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      const email = payload.email || ''
+      return email.split('@')[0] || 'User'
+    } catch {
+      return 'User'
+    }
+  }
+
+  const username = getUsername()
+
   // ==================== LIFECYCLE ====================
   useEffect(() => {
     fetchHistory()
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   // ==================== API CALLS ====================
@@ -535,7 +563,7 @@ function DashboardLayout() {
   // ==================== RENDER ====================
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
+    <div className="flex h-screen bg-[#F9FAFB]">
       {/* Sidebar */}
       {ui.sidebarOpen && (
         <Sidebar
@@ -543,7 +571,6 @@ function DashboardLayout() {
           activeContentId={content.contentId}
           onNewSession={handleNewSession}
           onSelectContent={handleSelectContent}
-          onLogout={handleLogout}
           loading={history.loading}
           onClose={() => setUi(prev => ({ ...prev, sidebarOpen: false }))}
           onDeleteContent={handleDeleteContent}
@@ -551,94 +578,137 @@ function DashboardLayout() {
         />
       )}
 
-      <main className="flex-1 overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex items-center gap-3">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+        {/* Top navigation bar */}
+        <header
+          className="flex-shrink-0 h-12 flex items-center px-4 gap-3"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(135deg, #1E3A8A 0%, #0F1F5C 100%)',
+            backgroundSize: '22px 22px, cover',
+          }}
+        >
           <button
             onClick={() => setUi(prev => ({ ...prev, sidebarOpen: !prev.sidebarOpen }))}
-            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-white/10 rounded-[6px] transition-colors"
             aria-label="Toggle sidebar"
           >
-            <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <h2 className="text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            {content.contentId ? 'Content Session' : 'EduGen Dashboard'}
-          </h2>
-        </div>
-
-        <div className="max-w-5xl mx-auto p-6">
-          {/* Content Session Active */}
-          {content.contentId ? (
-            <div className="space-y-6">
-              {/* Output History */}
-              <OutputHistory 
-                key={`history-${content.contentId}-${outputHistoryRefreshKey}`}
-                contentId={content.contentId}
-                onSelectOutput={handleSelectHistoryOutput}
-              />
-
-              {/* Error Display */}
-              {errors.generateError && (
-                <div className="bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300 text-red-700 px-3 py-2 rounded-lg text-xs font-medium">
-                  {errors.generateError}
-                </div>
-              )}
-
-              {/* Action Configuration (shown when NO result exists OR when chatbot is active) */}
-              {(!result.data || ui.activeAction === 'chatbot') && (
-                <ActionSelector 
-                  key={`action-${content.contentId}`}
-                  contentId={content.contentId} 
-                  onGenerate={handleGenerate}
-                  isProcessing={ui.isProcessing}
-                  chatbotHistory={ui.activeAction === 'chatbot' && result.action === 'chatbot' ? result.data : null}
-                />
-              )}
-
-              {/* Results Display (shown when result exists, but NOT for chatbot) */}
-              {result.data && result.action && result.action !== 'chatbot' && (
-                <ResultRenderer 
-                  activeAction={result.action}
-                  resultData={result.data}
-                  onClose={handleCloseResult}
-                />
-              )}
-            </div>
-          ) : ui.isProcessing ? (
-            /* Upload Processing */
-            <ProcessingStatus 
-              stage={ui.processingStage}
-              message={ui.processingMessage}
-              percentage={ui.processingPercentage}
-              inputType={ui.processingInputType}
-            />
-          ) : (
-            /* Initial Upload Screen */
-            <div className="py-8">
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-                  Start a New Session
-                </h2>
-                <p className="text-slate-600 text-base">
-                  Upload content to generate summaries, flashcards, quizzes, and more.
-                </p>
+          <span className="text-sm font-semibold text-white">
+            Hi, {username}
+          </span>
+          <div className="ml-auto relative" ref={userMenuRef}>
+            <button
+              onClick={() => setUserMenuOpen(prev => !prev)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-[8px] hover:bg-white/10 transition-colors"
+            >
+              <div className="w-7 h-7 rounded-full bg-white text-[#1E3A8A] flex items-center justify-center text-xs font-semibold">
+                {username.charAt(0).toUpperCase()}
               </div>
+              <span className="text-sm font-medium text-white">{username}</span>
+              <svg className="w-3.5 h-3.5 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {userMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-44 bg-white border border-[#E5E7EB] rounded-[8px] shadow-xl py-1 z-50">
+                <div className="px-3 py-2 border-b border-[#E5E7EB]">
+                  <p className="text-xs font-semibold text-[#111827] truncate">{username}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#DC2626] hover:bg-[#FEF2F2] transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
 
-              {errors.uploadError && (
-                <div className="max-w-3xl mx-auto mb-4">
-                  <div className="bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300 text-red-700 px-3 py-2 rounded-lg text-xs font-medium">
+        <main
+          className="flex-1 overflow-y-auto"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #C7D2FE 1px, transparent 1px)',
+            backgroundSize: '22px 22px',
+            backgroundColor: '#EEF2FF',
+          }}
+        >
+          <div className="max-w-4xl mx-auto px-6 py-8">
+            {/* Content Session Active */}
+            {content.contentId ? (
+              <div className="space-y-5">
+                {/* Output History */}
+                <OutputHistory
+                  key={`history-${content.contentId}-${outputHistoryRefreshKey}`}
+                  contentId={content.contentId}
+                  onSelectOutput={handleSelectHistoryOutput}
+                />
+
+                {/* Error Display */}
+                {errors.generateError && (
+                  <div className="bg-[#FEF2F2] border border-[#FECACA] text-[#B91C1C] px-3 py-2 rounded-[8px] text-sm">
+                    {errors.generateError}
+                  </div>
+                )}
+
+                {/* Action Configuration */}
+                {(!result.data || ui.activeAction === 'chatbot') && (
+                  <ActionSelector
+                    key={`action-${content.contentId}`}
+                    contentId={content.contentId}
+                    onGenerate={handleGenerate}
+                    isProcessing={ui.isProcessing}
+                    chatbotHistory={ui.activeAction === 'chatbot' && result.action === 'chatbot' ? result.data : null}
+                  />
+                )}
+
+                {/* Results Display */}
+                {result.data && result.action && result.action !== 'chatbot' && (
+                  <ResultRenderer
+                    activeAction={result.action}
+                    resultData={result.data}
+                    onClose={handleCloseResult}
+                  />
+                )}
+              </div>
+            ) : ui.isProcessing ? (
+              /* Upload Processing */
+              <ProcessingStatus
+                stage={ui.processingStage}
+                message={ui.processingMessage}
+                percentage={ui.processingPercentage}
+                inputType={ui.processingInputType}
+              />
+            ) : (
+              /* Initial Upload Screen */
+              <div>
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold text-[#111827] mb-1">
+                    New Session
+                  </h2>
+                  <p className="text-sm text-[#6B7280]">
+                    Upload content to generate summaries, flashcards, quizzes, and more.
+                  </p>
+                </div>
+
+                {errors.uploadError && (
+                  <div className="mb-4 bg-[#FEF2F2] border border-[#FECACA] text-[#B91C1C] px-3 py-2 rounded-[8px] text-sm">
                     {errors.uploadError}
                   </div>
-                </div>
-              )}
+                )}
 
-              <InputSelector onSubmit={handleUpload} loading={ui.isProcessing} />
-            </div>
-          )}
-        </div>
-      </main>
+                <InputSelector onSubmit={handleUpload} loading={ui.isProcessing} />
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

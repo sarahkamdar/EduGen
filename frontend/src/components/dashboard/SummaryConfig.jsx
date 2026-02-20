@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 
 function SummaryConfig({ contentId, onGenerate, loading }) {
   const [selectedType, setSelectedType] = useState('detailed')
@@ -13,7 +13,7 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h8m-8 6h16" />
         </svg>
       ),
-      color: 'from-blue-400 to-cyan-400'
+      iconBg: '#EEF2FF', iconText: '#1E3A8A'
     },
     {
       id: 'detailed',
@@ -24,7 +24,7 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       ),
-      color: 'from-purple-400 to-pink-400'
+      iconBg: '#EEF2FF', iconText: '#1E3A8A'
     },
     {
       id: 'exam',
@@ -35,7 +35,7 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
       ),
-      color: 'from-orange-400 to-red-400'
+      iconBg: '#EEF2FF', iconText: '#1E3A8A'
     },
     {
       id: 'revision',
@@ -46,7 +46,7 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
         </svg>
       ),
-      color: 'from-green-400 to-emerald-400'
+      iconBg: '#EEF2FF', iconText: '#1E3A8A'
     }
   ]
 
@@ -63,11 +63,11 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
     <div className="space-y-4">
       {/* Header */}
       <div className="text-center">
-        <h3 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-1">
-          Summary Settings
+        <h3 className="text-lg font-semibold text-[#111827] mb-1">
+          Summary
         </h3>
-        <p className="text-slate-600 text-xs">
-          Select summary type
+        <p className="text-[#6B7280] text-xs">
+          Choose a format.
         </p>
       </div>
 
@@ -77,24 +77,24 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
           <button
             key={type.id}
             onClick={() => setSelectedType(type.id)}
-            className={`relative p-3 rounded-lg border-2 transition-all text-left ${
+            className={`relative p-3 rounded-[8px] border transition-colors text-left ${
               selectedType === type.id
-                ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg'
-                : 'border-slate-200 bg-white hover:border-blue-300 hover:shadow-md'
+                ? 'border-[#1E3A8A] bg-[#EEF2FF]'
+                : 'border-[#E5E7EB] bg-white hover:border-[#9CA3AF]'
             }`}
           >
             <div className="flex items-start gap-2">
               {/* Icon */}
-              <div className={`flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br ${type.color} text-white flex items-center justify-center shadow-md`}>
+              <div className="flex-shrink-0 w-8 h-8 rounded-[6px] flex items-center justify-center" style={{ backgroundColor: type.iconBg, color: type.iconText }}>
                 {type.icon}
               </div>
 
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-slate-900 mb-0.5">
+                <h4 className="text-sm font-bold text-[#111827] mb-0.5">
                   {type.name}
                 </h4>
-                <p className="text-xs text-slate-600">
+                <p className="text-xs text-[#6B7280]">
                   {type.description}
                 </p>
               </div>
@@ -102,8 +102,8 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
               {/* Radio Indicator */}
               <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                 selectedType === type.id
-                  ? 'border-blue-500 bg-blue-500'
-                  : 'border-slate-300 bg-white'
+                  ? 'border-[#1E3A8A] bg-[#1E3A8A]'
+                  : 'border-[#D1D5DB] bg-white'
               }`}>
                 {selectedType === type.id && (
                   <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
@@ -114,7 +114,7 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
             {/* Selected Badge */}
             {selectedType === type.id && (
               <div className="absolute top-2 right-2">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500 text-white shadow-md">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#1E3A8A] text-white shadow-md">
                   Selected
                 </span>
               </div>
@@ -124,19 +124,19 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
       </div>
 
       {/* Info Box */}
-      <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-lg p-3">
+      <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[8px] p-3">
         <div className="flex items-start gap-2">
           <div className="flex-shrink-0">
-            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div className="flex-1">
-            <p className="text-xs text-slate-700 font-medium">
-              {selectedType === 'short' && 'Perfect for quick understanding and time-constrained reading.'}
-              {selectedType === 'detailed' && 'Best for in-depth learning and comprehensive understanding.'}
-              {selectedType === 'exam' && 'Ideal for exam preparation with focus on important topics.'}
-              {selectedType === 'revision' && 'Great for last-minute revision and memory recall.'}
+            <p className="text-xs text-[#374151] font-medium">
+              {selectedType === 'short' && 'A brief overview for quick reference.'}
+              {selectedType === 'detailed' && 'Comprehensive notes covering main concepts and supporting detail.'}
+              {selectedType === 'exam' && 'Focused on assessable content and commonly tested concepts.'}
+              {selectedType === 'revision' && 'Condensed bullet points for rapid review.'}
             </p>
           </div>
         </div>
@@ -146,7 +146,7 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
       <button
         onClick={handleGenerate}
         disabled={loading}
-        className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2 text-sm"
+        className="w-full h-10 bg-[#1E3A8A] text-white px-4 rounded-[8px] font-medium hover:bg-[#1C337A] focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
       >
         {loading ? (
           <>
@@ -157,12 +157,7 @@ function SummaryConfig({ contentId, onGenerate, loading }) {
             Generating Summary...
           </>
         ) : (
-          <>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            Generate Summary
-          </>
+          'Generate Summary'
         )}
       </button>
     </div>

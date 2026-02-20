@@ -6,6 +6,7 @@ import DashboardLayout from './components/dashboard/DashboardLayout'
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showAuth, setShowAuth] = useState(false)
+  const [authTab, setAuthTab] = useState('login')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -17,16 +18,17 @@ function App() {
     setLoading(false)
   }, [])
 
-  const handleNavigateToAuth = () => {
+  const handleNavigateToAuth = (tab = 'login') => {
+    setAuthTab(tab)
     setShowAuth(true)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB]">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
-          <p className="mt-4 text-slate-600">Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#111827]"></div>
+          <p className="mt-4 text-[#6B7280]">Loading...</p>
         </div>
       </div>
     )
@@ -37,10 +39,10 @@ function App() {
   }
 
   if (showAuth) {
-    return <AuthLayout />
+    return <AuthLayout key={authTab} initialTab={authTab} />
   }
 
-  return <HomePage onNavigateToAuth={handleNavigateToAuth} />
+  return <HomePage onNavigateToAuth={handleNavigateToAuth} onGetStarted={() => handleNavigateToAuth('signup')} />
 }
 
 export default App

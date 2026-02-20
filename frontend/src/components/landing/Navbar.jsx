@@ -1,23 +1,23 @@
-import React from 'react'
+﻿import React from 'react'
 import Logo from '../common/Logo'
 
-const Navbar = ({ onSignIn }) => {
+const Navbar = ({ onSignIn, onGetStarted }) => {
   return (
-    <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-slate-200 z-50">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Logo size="sm" />
-          
-          <div className="flex items-center gap-4">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[#C7D2FE]" style={{ backgroundImage: 'radial-gradient(circle, #C7D2FE 1px, transparent 1px)', backgroundSize: '22px 22px', backgroundColor: '#EEF2FF' }}>
+      <div className="max-w-[1200px] mx-auto px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14">
+          <Logo size="md" />
+
+          <div className="flex items-center gap-3">
             <button
-              onClick={onSignIn}
-              className="px-5 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600 transition-colors"
+              onClick={() => onSignIn('login')}
+              className="px-4 py-2 text-sm font-medium text-[#6B7280] hover:text-[#111827] transition-colors"
             >
               Sign In
             </button>
             <button
-              onClick={onSignIn}
-              className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-violet-600 rounded-lg hover:shadow-lg hover:scale-105 transition-all"
+              onClick={onGetStarted}
+              className="px-4 py-2 text-sm font-medium text-white bg-[#1E3A8A] rounded-[8px] hover:bg-[#1C337A] transition-colors"
             >
               Get Started
             </button>

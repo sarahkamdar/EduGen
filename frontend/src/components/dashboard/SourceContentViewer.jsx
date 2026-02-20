@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 
 function SourceContentViewer({ contentId, isOpen, onClose }) {
   const [content, setContent] = useState(null)
@@ -91,14 +91,7 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
   }
 
   const getInputTypeColor = (inputType) => {
-    switch (inputType) {
-      case 'pdf': return 'bg-red-100 text-red-600 border-red-200'
-      case 'word': return 'bg-blue-100 text-blue-600 border-blue-200'
-      case 'video': return 'bg-purple-100 text-purple-600 border-purple-200'
-      case 'youtube': return 'bg-red-100 text-red-600 border-red-200'
-      case 'text': return 'bg-green-100 text-green-600 border-green-200'
-      default: return 'bg-slate-100 text-slate-600 border-slate-200'
-    }
+    return 'bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]'
   }
 
   const formatDate = (dateString) => {
@@ -126,21 +119,21 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-[8px] shadow-xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB] bg-white">
           <div className="flex items-center gap-3">
             {content && (
-              <div className={`p-2 rounded-lg border ${getInputTypeColor(content.input_type)}`}>
+              <div className={`p-2 rounded-[6px] border ${getInputTypeColor(content.input_type)}`}>
                 {getInputTypeIcon(content.input_type)}
               </div>
             )}
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
+              <h2 className="text-base font-semibold text-[#111827]">
                 {loading ? 'Loading...' : content?.title || 'Source Content'}
               </h2>
               {content && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-[#9CA3AF]">
                   {getInputTypeLabel(content.input_type)} • {formatDate(content.created_at)}
                 </p>
               )}
@@ -150,7 +143,7 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
             {content && (
               <button
                 onClick={copyToClipboard}
-                className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-2 text-[#9CA3AF] hover:text-[#374151] hover:bg-[#F3F4F6] rounded-[6px] transition-colors"
                 title="Copy content"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -160,7 +153,7 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
             )}
             <button
               onClick={onClose}
-              className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-2 text-[#9CA3AF] hover:text-[#374151] hover:bg-[#F3F4F6] rounded-[6px] transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -173,8 +166,8 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <div className="w-10 h-10 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin mb-4" />
-              <p className="text-slate-500">Loading source content...</p>
+              <div className="w-8 h-8 border-2 border-[#E5E7EB] border-t-[#1E3A8A] rounded-full animate-spin mb-4" />
+              <p className="text-[#9CA3AF] text-sm">Loading source content...</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -182,25 +175,25 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <p className="text-red-600 font-medium mb-2">Failed to load content</p>
-              <p className="text-sm text-slate-500">{error}</p>
+              <p className="text-sm text-[#6B7280]">{error}</p>
             </div>
           ) : content ? (
             <div className="space-y-4">
               {/* YouTube URL if available */}
               {content.youtube_url && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[8px] p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-sm font-semibold text-red-700">YouTube Video</span>
+                    <span className="text-sm font-medium text-[#374151]">YouTube Video</span>
                   </div>
                   <a
                     href={content.youtube_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-red-600 hover:text-red-800 underline break-all"
+                    className="text-sm text-[#1E3A8A] hover:text-[#1C337A] underline break-all"
                   >
                     {content.youtube_url}
                   </a>
@@ -208,7 +201,7 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
               )}
 
               {/* Content Stats */}
-              <div className="flex items-center gap-4 text-sm text-slate-500">
+              <div className="flex items-center gap-4 text-sm text-[#6B7280]">
                 <span className="flex items-center gap-1">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -224,8 +217,8 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
               </div>
 
               {/* Text Content */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-                <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+              <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[8px] p-5">
+                <h3 className="text-sm font-medium text-[#374151] mb-3 flex items-center gap-2">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
@@ -234,7 +227,7 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
                     : 'Extracted Content'}
                 </h3>
                 <div className="prose prose-sm max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-slate-700 leading-relaxed text-sm bg-white p-4 rounded-lg border border-slate-100 max-h-[50vh] overflow-y-auto">
+                  <pre className="whitespace-pre-wrap font-sans text-[#374151] leading-relaxed text-sm bg-white p-4 rounded-[8px] border border-[#E5E7EB] max-h-[50vh] overflow-y-auto">
                     {content.normalized_text}
                   </pre>
                 </div>
@@ -244,11 +237,11 @@ function SourceContentViewer({ contentId, isOpen, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+        <div className="px-6 py-4 border-t border-[#E5E7EB] bg-[#F9FAFB]">
           <div className="flex items-center justify-end">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-slate-700 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition-colors"
+              className="h-9 px-4 bg-[#111827] text-white text-sm font-medium rounded-[8px] hover:bg-[#374151] transition-colors"
             >
               Close
             </button>

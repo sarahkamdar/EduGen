@@ -1,39 +1,46 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import Login from './Login'
 import Signup from './Signup'
 import Logo from '../common/Logo'
 
-function AuthLayout() {
-  const [isLogin, setIsLogin] = useState(true)
+function AuthLayout({ initialTab = 'login' }) {
+  const [isLogin, setIsLogin] = useState(initialTab === 'login')
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-6">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{
+        backgroundImage: 'radial-gradient(circle, #C7D2FE 1px, transparent 1px)',
+        backgroundSize: '22px 22px',
+        backgroundColor: '#EEF2FF',
+      }}
+    >
+      <div className="relative w-full max-w-sm">
+        <div className="flex justify-start mb-8">
           <Logo size="lg" />
         </div>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-xl border-2 border-white overflow-hidden">
-          <div className="flex border-b border-slate-200">
+        <div className="bg-white border border-[#C7D2FE] rounded-[8px] shadow-sm overflow-hidden">
+          <div className="flex border-b border-[#E5E7EB]">
             <button
               onClick={() => setIsLogin(true)}
-              className={`flex-1 py-3 text-xs font-semibold transition-all ${
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 isLogin
-                  ? 'text-transparent bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text border-b-2 border-purple-600'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'text-[#111827] border-b-2 border-[#1E3A8A]'
+                  : 'text-[#6B7280] hover:text-[#374151]'
               }`}
             >
-              Login
+              Sign In
             </button>
             <button
               onClick={() => setIsLogin(false)}
-              className={`flex-1 py-3 text-xs font-semibold transition-all ${
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
                 !isLogin
-                  ? 'text-transparent bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text border-b-2 border-purple-600'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'text-[#111827] border-b-2 border-[#1E3A8A]'
+                  : 'text-[#6B7280] hover:text-[#374151]'
               }`}
             >
-              Sign Up
+              Create Account
             </button>
           </div>
 
@@ -42,8 +49,8 @@ function AuthLayout() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-slate-500 mt-4">
-          By continuing, you agree to our Terms & Privacy Policy
+        <p className="text-center text-xs text-[#9CA3AF] mt-4">
+          By continuing, you agree to our Terms &amp; Privacy Policy
         </p>
       </div>
     </div>

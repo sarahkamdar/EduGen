@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 
 function OutputHistory({ contentId, onSelectOutput }) {
   const [outputs, setOutputs] = useState([])
@@ -101,11 +101,11 @@ function OutputHistory({ contentId, onSelectOutput }) {
   }
 
   const featureColors = {
-    summary: 'bg-blue-100 text-blue-700 border-blue-300',
-    flashcards: 'bg-purple-100 text-purple-700 border-purple-300',
-    quiz: 'bg-green-100 text-green-700 border-green-300',
-    chatbot: 'bg-pink-100 text-pink-700 border-pink-300',
-    ppt: 'bg-orange-100 text-orange-700 border-orange-300'
+    summary:    'bg-[#EEF2FF] text-[#1E3A8A] border-[#C7D2FE]',
+    flashcards: 'bg-[#EEF2FF] text-[#1E3A8A] border-[#C7D2FE]',
+    quiz:       'bg-[#EEF2FF] text-[#1E3A8A] border-[#C7D2FE]',
+    chatbot:    'bg-[#EEF2FF] text-[#1E3A8A] border-[#C7D2FE]',
+    ppt:        'bg-[#EEF2FF] text-[#1E3A8A] border-[#C7D2FE]'
   }
 
   const formatDate = (dateString) => {
@@ -156,25 +156,25 @@ function OutputHistory({ contentId, onSelectOutput }) {
     <div className="mb-6">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-white border-2 border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 bg-white border border-[#E5E7EB] rounded-[8px] hover:bg-[#F9FAFB] transition-colors"
       >
         <div className="flex items-center gap-3">
           {loading && !isOpen ? (
-            <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-[#E5E7EB] border-t-[#1E3A8A] rounded-full animate-spin" />
           ) : (
-            <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-[#6B7280]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           )}
           <div className="text-left">
-            <p className="text-sm font-semibold text-slate-900">Generation History</p>
-            <p className="text-xs text-slate-500">
+              <p className="text-sm font-medium text-[#111827]">Generation History</p>
+            <p className="text-xs text-[#9CA3AF]">
               {outputs.length > 0 ? `${outputs.length} previous generation${outputs.length !== 1 ? 's' : ''}` : 'No previous generations'}
             </p>
           </div>
         </div>
         <svg
-          className={`w-5 h-5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 text-[#9CA3AF] transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -184,11 +184,11 @@ function OutputHistory({ contentId, onSelectOutput }) {
       </button>
 
       {isOpen && (
-        <div className="mt-2 bg-white border-2 border-slate-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+        <div className="mt-2 bg-white border border-[#E5E7EB] rounded-[8px] p-4 max-h-96 overflow-y-auto">
           {loading ? (
             <div className="text-center py-8">
-              <div className="inline-block w-6 h-6 border-3 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
-              <p className="text-xs text-slate-500 mt-2">Loading history...</p>
+              <div className="inline-block w-6 h-6 border-2 border-[#E5E7EB] border-t-[#1E3A8A] rounded-full animate-spin" />
+              <p className="text-xs text-[#6B7280] mt-2">Loading history...</p>
             </div>
           ) : error ? (
             <div className="text-center py-4">
@@ -196,37 +196,37 @@ function OutputHistory({ contentId, onSelectOutput }) {
             </div>
           ) : outputs.length === 0 ? (
             <div className="text-center py-8">
-              <svg className="w-12 h-12 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-10 h-10 text-[#E5E7EB] mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
               </svg>
-              <p className="text-sm font-semibold text-slate-700 mb-1">No History Yet</p>
-              <p className="text-xs text-slate-500">Generate some content to see it here</p>
+              <p className="text-sm font-medium text-[#374151] mb-1">No history yet</p>
+              <p className="text-xs text-[#9CA3AF]">Generated content will appear here</p>
             </div>
           ) : (
             <div className="space-y-2">
               {outputs.map((output) => (
                 <div
                   key={output.output_id}
-                  className="flex items-start gap-2 px-3 py-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors group"
+                  className="flex items-start gap-2 px-3 py-3 rounded-[8px] border border-[#E5E7EB] hover:border-[#D1D5DB] hover:bg-[#F9FAFB] transition-colors group"
                 >
                   <button
                     onClick={() => onSelectOutput(output.output_id, output.feature)}
                     className="flex-1 flex items-start gap-3 text-left"
                   >
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center ${featureColors[output.feature] || 'bg-slate-100 text-slate-700 border-slate-300'}`}>
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-[6px] border flex items-center justify-center ${featureColors[output.feature] || 'bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]'}`}>
                       {featureIcons[output.feature]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <p className="text-sm font-semibold text-slate-900 capitalize">
+                        <p className="text-sm font-medium text-[#111827] capitalize">
                           {output.feature}
                         </p>
-                        <span className="text-xs text-slate-500 flex-shrink-0">
+                        <span className="text-xs text-[#9CA3AF] flex-shrink-0">
                           {formatDate(output.created_at)}
                         </span>
                       </div>
                       {getOptionsDisplay(output.feature, output.options, output.score) && (
-                        <p className="text-xs text-slate-600 truncate">
+                          <p className="text-xs text-[#6B7280] truncate">
                           {getOptionsDisplay(output.feature, output.options, output.score)}
                         </p>
                       )}
@@ -234,16 +234,16 @@ function OutputHistory({ contentId, onSelectOutput }) {
                       {output.feature === 'quiz' && output.score && (
                         <div className="mt-1">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            output.score.percentage >= 80 ? 'bg-green-100 text-green-700' :
-                            output.score.percentage >= 60 ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-red-100 text-red-700'
+                            output.score.percentage >= 80 ? 'bg-[#F0FDF4] text-[#166534]' :
+                            output.score.percentage >= 60 ? 'bg-[#FEFCE8] text-[#854D0E]' :
+                            'bg-[#FEF2F2] text-[#991B1B]'
                           }`}>
                             {output.score.percentage}%
                           </span>
                         </div>
                       )}
                     </div>
-                    <svg className="w-4 h-4 text-slate-400 group-hover:text-slate-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-[#9CA3AF] group-hover:text-[#6B7280] flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
@@ -251,7 +251,7 @@ function OutputHistory({ contentId, onSelectOutput }) {
                   {/* Delete button */}
                   <button
                     onClick={(e) => handleDeleteOutput(output.output_id, e)}
-                    className="flex-shrink-0 p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                    className="flex-shrink-0 p-1.5 text-[#9CA3AF] hover:text-[#DC2626] hover:bg-[#FEF2F2] rounded transition-colors"
                     title="Delete generation"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

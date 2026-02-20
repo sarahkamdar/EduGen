@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 
 function ProcessingStatus({ stage = 'upload', message = 'Processing...', percentage = 0, inputType = 'file' }) {
   // Define stages based on input type
@@ -44,13 +44,13 @@ function ProcessingStatus({ stage = 'upload', message = 'Processing...', percent
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="bg-white rounded-xl border-2 border-blue-200 p-6 shadow-lg">
+      <div className="bg-white rounded-[8px] border border-[#E5E7EB] p-6">
         {/* Header */}
         <div className="text-center mb-6">
-          <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          <h3 className="text-base font-semibold text-[#111827] mb-1">
             Processing Content
           </h3>
-          <p className="text-slate-600 text-sm">{message}</p>
+          <p className="text-[#6B7280] text-sm">{message}</p>
         </div>
 
         {/* Stages Timeline */}
@@ -66,10 +66,10 @@ function ProcessingStatus({ stage = 'upload', message = 'Processing...', percent
                   <div className="flex flex-col items-center">
                     <div className={`
                       w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300
-                      ${status === 'completed' ? 'bg-green-500 border-green-500 text-white' : ''}
-                      ${status === 'active' ? 'bg-blue-500 border-blue-500 text-white animate-pulse' : ''}
-                      ${status === 'pending' ? 'bg-slate-100 border-slate-300 text-slate-400' : ''}
-                      ${status === 'error' ? 'bg-red-500 border-red-500 text-white' : ''}
+                      ${status === 'completed' ? 'bg-[#22C55E] border-[#22C55E] text-white' : ''}
+                      ${status === 'active' ? 'bg-[#1E3A8A] border-[#1E3A8A] text-white' : ''}
+                      ${status === 'pending' ? 'bg-[#F3F4F6] border-[#E5E7EB] text-[#9CA3AF]' : ''}
+                      ${status === 'error' ? 'bg-[#EF4444] border-[#EF4444] text-white' : ''}
                     `}>
                       {status === 'completed' ? (
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,9 +88,9 @@ function ProcessingStatus({ stage = 'upload', message = 'Processing...', percent
                       )}
                     </div>
                     <p className={`mt-2 text-xs font-medium text-center ${
-                      status === 'completed' ? 'text-green-600' : 
-                      status === 'active' ? 'text-blue-600' : 
-                      status === 'error' ? 'text-red-600' : 'text-slate-400'
+                      status === 'completed' ? 'text-[#22C55E]' : 
+                      status === 'active' ? 'text-[#1E3A8A]' : 
+                      status === 'error' ? 'text-[#EF4444]' : 'text-[#9CA3AF]'
                     }`}>
                       {s.name}
                     </p>
@@ -100,8 +100,8 @@ function ProcessingStatus({ stage = 'upload', message = 'Processing...', percent
                   {!isLast && (
                     <div className={`flex-1 h-1 mx-2 rounded transition-all duration-300 ${
                       getStageStatus(allStages[index + 1].key, index + 1) === 'completed' || status === 'completed' && getStageStatus(allStages[index + 1].key, index + 1) !== 'pending'
-                        ? 'bg-green-500' 
-                        : status === 'active' ? 'bg-gradient-to-r from-blue-500 to-slate-200' : 'bg-slate-200'
+                        ? 'bg-[#22C55E]' 
+                        : status === 'active' ? 'bg-[#E5E7EB]' : 'bg-[#E5E7EB]'
                     }`} />
                   )}
                 </React.Fragment>
@@ -112,24 +112,24 @@ function ProcessingStatus({ stage = 'upload', message = 'Processing...', percent
 
         {/* Progress Bar */}
         <div className="mb-4">
-          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+          <div className="h-2 bg-[#E5E7EB] rounded-full overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500 ease-out"
+              className="h-full bg-[#1E3A8A] transition-all duration-500 ease-out"
               style={{ width: `${percentage}%` }}
             />
           </div>
           <div className="flex justify-between mt-1">
-            <span className="text-xs text-slate-500">Progress</span>
-            <span className="text-xs font-semibold text-blue-600">{percentage}%</span>
+            <span className="text-xs text-[#6B7280]">Progress</span>
+            <span className="text-xs font-medium text-[#1E3A8A]">{percentage}%</span>
           </div>
         </div>
 
         {/* Current Stage Info */}
         {stage !== 'complete' && stage !== 'error' && (
-          <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+          <div className="bg-[#EEF2FF] rounded-[8px] p-3 border border-[#C7D2FE]">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <p className="text-sm text-blue-700">
+              <div className="w-2 h-2 bg-[#1E3A8A] rounded-full"></div>
+              <p className="text-sm text-[#1E3A8A]">
                 {allStages.find(s => s.key === stage)?.description || 'Processing...'}
               </p>
             </div>
@@ -137,12 +137,12 @@ function ProcessingStatus({ stage = 'upload', message = 'Processing...', percent
         )}
 
         {stage === 'complete' && (
-          <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+          <div className="bg-[#F0FDF4] rounded-[8px] p-3 border border-[#BBF7D0]">
             <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-[#22C55E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <p className="text-sm text-green-700 font-medium">Content processed successfully!</p>
+              <p className="text-sm text-[#166534] font-medium">Content processed successfully.</p>
             </div>
           </div>
         )}

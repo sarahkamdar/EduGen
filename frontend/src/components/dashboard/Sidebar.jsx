@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import SourceContentViewer from './SourceContentViewer'
 import Logo from '../common/Logo'
 
-function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLogout, loading, onClose, onDeleteContent, onRefreshHistory }) {
+function Sidebar({ history, activeContentId, onNewSession, onSelectContent, loading, onClose, onDeleteContent, onRefreshHistory }) {
   const [editingId, setEditingId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
   const [viewingContentId, setViewingContentId] = useState(null)
@@ -23,20 +23,7 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
   }
 
   const getInputTypeColor = (inputType) => {
-    switch (inputType) {
-      case 'pdf':
-        return 'bg-red-500'
-      case 'word':
-        return 'bg-blue-500'
-      case 'video':
-        return 'bg-purple-500'
-      case 'youtube':
-        return 'bg-red-600'
-      case 'text':
-        return 'bg-green-500'
-      default:
-        return 'bg-slate-500'
-    }
+    return 'bg-[#EEF2FF] text-[#1E3A8A] border border-[#C7D2FE]'
   }
 
   const getInputTypeIcon = (inputType) => {
@@ -84,7 +71,7 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
   const handleDeleteContent = async (contentId, event) => {
     event.stopPropagation() // Prevent triggering onSelectContent
 
-    if (!confirm('Are you sure you want to delete this content session? This will delete all related summaries, flashcards, and quizzes. This action cannot be undone.')) {
+          if (!confirm('Delete this session? All associated outputs (summaries, flashcards, quizzes) will also be removed. This cannot be undone.')) {
       return
     }
 
@@ -137,17 +124,23 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
   }
 
   return (
-    <aside className="w-80 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-r-2 border-blue-200 flex flex-col h-screen shadow-xl overflow-hidden">
+    <aside className="w-80 flex flex-col h-screen overflow-hidden border-r border-[#C7D2FE]" style={{ backgroundImage: 'radial-gradient(circle, #C7D2FE 1px, transparent 1px)', backgroundSize: '22px 22px', backgroundColor: '#EEF2FF' }}>
       {/* Logo */}
-      <div className="p-4">
-        <Logo size="md" />
+      <div
+        className="p-4"
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.10) 1px, transparent 1px), linear-gradient(135deg, #1E3A8A 0%, #0F1F5C 100%)',
+          backgroundSize: '22px 22px, cover',
+        }}
+      >
+        <Logo size="md" variant="light" />
       </div>
 
       {/* New Session Button */}
       <div className="p-3">
         <button
           onClick={onNewSession}
-          className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white py-2 px-3 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-600 transition-all flex items-center justify-center gap-1.5 shadow-lg text-sm"
+          className="w-full h-9 bg-[#1E3A8A] text-white px-3 rounded-[8px] font-medium hover:bg-[#1C337A] transition-colors flex items-center justify-center gap-1.5 text-sm"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -158,33 +151,33 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
 
       {/* History List */}
       <div className="flex-1 overflow-y-auto p-3">
-        <h2 className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider mb-2">
+        <h2 className="text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider mb-2">
           History
         </h2>
 
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white/50 rounded-lg p-2 animate-pulse">
-                <div className="h-3 bg-blue-200 rounded w-3/4 mb-1.5"></div>
-                <div className="h-2 bg-blue-200 rounded w-1/2"></div>
+              <div key={i} className="bg-white rounded-[8px] p-2 animate-pulse border border-[#C7D2FE]">
+                <div className="h-3 bg-[#C7D2FE] rounded w-3/4 mb-1.5"></div>
+                <div className="h-2 bg-[#C7D2FE] rounded w-1/2"></div>
               </div>
             ))}
           </div>
         ) : history.length === 0 ? (
           <div className="text-center py-6">
-            <p className="text-slate-600 text-xs font-medium">No history yet</p>
-            <p className="text-slate-500 text-[10px] mt-0.5">Start a new session</p>
+            <p className="text-[#6B7280] text-xs font-medium">No sessions yet</p>
+            <p className="text-[#6B7280] text-[10px] mt-0.5">Upload content to begin</p>
           </div>
         ) : (
           <div className="space-y-2">
             {history.map((item) => (
               <div
                 key={item.content_id}
-                className={`flex items-stretch rounded-lg transition-all border-2 overflow-hidden ${
+                className={`flex items-stretch rounded-[8px] transition-colors border overflow-hidden ${
                   activeContentId === item.content_id
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-500 border-blue-400 shadow-lg'
-                    : 'bg-white/70 border-blue-200 hover:bg-white hover:border-blue-300 hover:shadow-md'
+                    ? 'bg-[#EEF2FF] border-[#1E3A8A]'
+                    : 'bg-white border-[#C7D2FE] hover:bg-[#F5F7FF] hover:border-[#A5B4FC]'
                 }`}
               >
                 <button
@@ -192,7 +185,7 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
                   className="flex-1 text-left p-2.5 min-w-0"
                 >
                   <div className="flex items-start gap-2">
-                    <div className={`${getInputTypeColor(item.input_type)} p-1.5 rounded-md text-white flex-shrink-0 shadow-md`}>
+                    <div className={`${getInputTypeColor(item.input_type)} p-1.5 rounded-[6px] flex-shrink-0`}>
                       {getInputTypeIcon(item.input_type)}
                     </div>
                     <div className="flex-1 min-w-0 overflow-hidden">
@@ -207,13 +200,13 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
                             if (e.key === 'Escape') handleCancelEdit(e)
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-full text-xs font-semibold bg-white text-slate-800 px-2 py-1 rounded border-2 border-blue-400 focus:outline-none focus:border-blue-600"
+                          className="w-full text-xs font-semibold bg-white text-[#111827] px-2 py-1 rounded-[6px] border border-[#1E3A8A] focus:outline-none focus:ring-1 focus:ring-[#1E3A8A]"
                           autoFocus
                         />
                       ) : (
                         <div className="flex items-start gap-1 min-w-0">
                           <p className={`text-sm font-semibold break-words flex-1 min-w-0 ${
-                            activeContentId === item.content_id ? 'text-white' : 'text-slate-800'
+                            activeContentId === item.content_id ? 'text-[#111827]' : 'text-[#111827]'
                           }`}>
                             {item.title || `${item.input_type.charAt(0).toUpperCase() + item.input_type.slice(1)} Content`}
                           </p>
@@ -221,8 +214,8 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
                             onClick={(e) => handleStartEdit(item.content_id, item.title, e)}
                             className={`flex-shrink-0 p-0.5 rounded transition-colors ${
                               activeContentId === item.content_id
-                                ? 'text-white/70 hover:text-white hover:bg-white/20'
-                                : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'
+                                ? 'text-[#9CA3AF] hover:text-[#374151] hover:bg-[#F3F4F6]'
+                                : 'text-[#9CA3AF] hover:text-[#374151] hover:bg-[#F3F4F6]'
                             }`}
                             title="Rename"
                           >
@@ -233,16 +226,12 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
                         </div>
                       )}
                       <p
-                        className={`text-xs mt-1 line-clamp-2 break-words ${
-                          activeContentId === item.content_id ? 'text-blue-100' : 'text-slate-600'
-                        }`}
+                        className={`text-xs mt-1 line-clamp-2 break-words text-[#6B7280]`}
                       >
                         {item.preview}
                       </p>
                       <p
-                        className={`text-[10px] mt-1.5 font-medium ${
-                          activeContentId === item.content_id ? 'text-blue-200' : 'text-slate-500'
-                        }`}
+                        className={`text-[10px] mt-1.5 font-medium text-[#9CA3AF]`}
                       >
                         {formatDate(item.created_at)}
                       </p>
@@ -258,11 +247,7 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
                       e.stopPropagation()
                       setViewingContentId(item.content_id)
                     }}
-                    className={`flex-1 w-9 flex items-center justify-center transition-colors ${
-                      activeContentId === item.content_id
-                        ? 'text-white/70 hover:text-white hover:bg-white/20'
-                        : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'
-                    }`}
+                    className={`flex-1 w-9 flex items-center justify-center transition-colors text-[#9CA3AF] hover:text-[#374151] hover:bg-[#F3F4F6]`}
                     title="View source content"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -274,11 +259,7 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
                   {/* Delete button */}
                   <button
                     onClick={(e) => handleDeleteContent(item.content_id, e)}
-                    className={`flex-1 w-9 flex items-center justify-center transition-colors ${
-                      activeContentId === item.content_id
-                        ? 'text-white/70 hover:text-white hover:bg-red-500/80'
-                        : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
-                    }`}
+                    className={`flex-1 w-9 flex items-center justify-center transition-colors text-[#9CA3AF] hover:text-[#DC2626] hover:bg-[#FEF2F2]`}
                     title="Delete content"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,19 +271,6 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, onLo
             ))}
           </div>
         )}
-      </div>
-
-      {/* Logout Button */}
-      <div className="p-3 border-t-2 border-blue-200">
-        <button
-          onClick={onLogout}
-          className="w-full bg-white border-2 border-red-200 text-red-600 py-2 px-3 rounded-lg font-semibold hover:bg-red-50 hover:border-red-300 transition-all flex items-center justify-center gap-1.5 text-xs"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          <span>Logout</span>
-        </button>
       </div>
 
       {/* Source Content Viewer Modal */}

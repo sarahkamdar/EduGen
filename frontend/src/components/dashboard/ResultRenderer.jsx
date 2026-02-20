@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import PPTPreview from './PPTPreview'
 
 function ResultRenderer({ activeAction, resultData, onClose }) {
@@ -64,42 +64,6 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
       </svg>
     )
   }
-
-  // Action color schemes
-  const colorSchemes = {
-    summary: {
-      gradient: 'from-blue-600 to-cyan-600',
-      bg: 'from-blue-50 to-cyan-50',
-      border: 'border-blue-200',
-      button: 'from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600'
-    },
-    flashcards: {
-      gradient: 'from-purple-600 to-pink-600',
-      bg: 'from-purple-50 to-pink-50',
-      border: 'border-purple-200',
-      button: 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-    },
-    quiz: {
-      gradient: 'from-green-600 to-emerald-600',
-      bg: 'from-green-50 to-emerald-50',
-      border: 'border-green-200',
-      button: 'from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600'
-    },
-    ppt: {
-      gradient: 'from-orange-600 to-red-600',
-      bg: 'from-orange-50 to-red-50',
-      border: 'border-orange-200',
-      button: 'from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600'
-    },
-    chatbot: {
-      gradient: 'from-indigo-600 to-purple-600',
-      bg: 'from-indigo-50 to-purple-50',
-      border: 'border-indigo-200',
-      button: 'from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600'
-    }
-  }
-
-  const colors = colorSchemes[activeAction] || colorSchemes.summary
 
   // Flashcard flip handler
   const toggleFlip = (index) => {
@@ -181,7 +145,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           elements.push(
             <ul key={`list-${elements.length}`} className="ml-6 mb-4 space-y-1.5">
               {listItems.map((item, idx) => (
-                <li key={idx} className="text-slate-700 text-sm leading-relaxed list-disc">
+                <li key={idx} className="text-[#374151] text-sm leading-relaxed list-disc">
                   {parseInlineFormatting(item)}
                 </li>
               ))}
@@ -191,7 +155,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           elements.push(
             <ol key={`list-${elements.length}`} className="ml-6 mb-4 space-y-1.5">
               {listItems.map((item, idx) => (
-                <li key={idx} className="text-slate-700 text-sm leading-relaxed list-decimal">
+                <li key={idx} className="text-[#374151] text-sm leading-relaxed list-decimal">
                   {parseInlineFormatting(item)}
                 </li>
               ))}
@@ -212,7 +176,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
         // Bold (**text**)
         const boldMatch = remaining.match(/\*\*(.+?)\*\*/)
         if (boldMatch && boldMatch.index === 0) {
-          parts.push(<strong key={key++} className="font-bold text-slate-900">{boldMatch[1]}</strong>)
+          parts.push(<strong key={key++} className="font-bold text-[#111827]">{boldMatch[1]}</strong>)
           remaining = remaining.slice(boldMatch[0].length)
           continue
         }
@@ -220,7 +184,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
         // Italic (*text*)
         const italicMatch = remaining.match(/\*([^*]+?)\*/)
         if (italicMatch && italicMatch.index === 0) {
-          parts.push(<em key={key++} className="italic text-slate-700">{italicMatch[1]}</em>)
+          parts.push(<em key={key++} className="italic text-[#374151]">{italicMatch[1]}</em>)
           remaining = remaining.slice(italicMatch[0].length)
           continue
         }
@@ -229,7 +193,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
         const codeMatch = remaining.match(/`([^`]+?)`/)
         if (codeMatch && codeMatch.index === 0) {
           parts.push(
-            <code key={key++} className="px-1.5 py-0.5 bg-slate-200 text-slate-800 rounded text-xs font-mono">
+            <code key={key++} className="px-1.5 py-0.5 bg-[#E5E7EB] text-[#1F2937] rounded text-xs font-mono">
               {codeMatch[1]}
             </code>
           )
@@ -263,7 +227,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
       if (line.startsWith('###')) {
         flushList()
         elements.push(
-          <h3 key={index} className="text-lg font-bold text-slate-900 mb-3 mt-4">
+          <h3 key={index} className="text-lg font-bold text-[#111827] mb-3 mt-4">
             {parseInlineFormatting(line.replace(/^###\s*/, ''))}
           </h3>
         )
@@ -272,7 +236,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
       else if (line.startsWith('##')) {
         flushList()
         elements.push(
-          <h2 key={index} className="text-xl font-bold text-slate-900 mb-3 mt-5">
+          <h2 key={index} className="text-xl font-bold text-[#111827] mb-3 mt-5">
             {parseInlineFormatting(line.replace(/^##\s*/, ''))}
           </h2>
         )
@@ -297,7 +261,7 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
       else {
         flushList()
         elements.push(
-          <p key={index} className="text-slate-700 text-sm leading-relaxed mb-3">
+          <p key={index} className="text-[#374151] text-sm leading-relaxed mb-3">
             {parseInlineFormatting(line)}
           </p>
         )
@@ -313,21 +277,83 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
     const summary = resultData.summary || ''
     const summaryType = resultData.summary_type || 'detailed'
 
+    const summaryTypeLabel = {
+      detailed: 'Detailed Notes',
+      brief: 'Brief Overview',
+      exam: 'Exam-Focused',
+      bullets: 'Quick Bullets',
+    }[summaryType] || 'Summary'
+
+    const wordCount = summary.split(/\s+/).filter(Boolean).length
+
     return (
       <div className="space-y-4">
-        <div className={`bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-xl p-6`}>
-          <div className="flex items-center gap-2 mb-4">
-            <span className="px-3 py-1 bg-white/80 rounded-full text-xs font-semibold text-slate-700 border border-slate-200">
-              {summaryType.charAt(0).toUpperCase() + summaryType.slice(1)} Summary
-            </span>
+        {/* Dark navy header */}
+        <div
+          className="rounded-[12px] overflow-hidden"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(135deg, #1E3A8A 0%, #0F1F5C 100%)',
+            backgroundSize: '22px 22px, cover',
+            boxShadow: '0 4px 24px rgba(30,58,138,0.18)',
+          }}
+        >
+          <div className="px-6 pt-6 pb-5">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-12 h-12 rounded-[10px] bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white leading-tight mb-1">Summary</h3>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 text-blue-200 border border-white/20">
+                  {summaryTypeLabel}
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+                <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Words</p>
+                <p className="text-xl font-bold text-white">{wordCount}</p>
+              </div>
+              <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+                <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Type</p>
+                <p className="text-sm font-semibold text-white capitalize">{summaryType}</p>
+              </div>
+            </div>
           </div>
-          
-          <div className="prose prose-sm max-w-none">
-            <div className="text-slate-800">
+        </div>
+
+        {/* Content card */}
+        <div className="rounded-[12px] overflow-hidden border border-[#C7D2FE]" style={{ boxShadow: '0 4px 24px rgba(99,102,241,0.07)' }}>
+          <div className="px-6 py-6 bg-white">
+            <div
+              className="text-[15px] text-[#374151] leading-[1.8] space-y-3
+                [&_h1]:text-base [&_h1]:font-bold [&_h1]:text-[#1E1B4B] [&_h1]:mt-6 [&_h1]:mb-2 [&_h1]:pl-3 [&_h1]:border-l-4 [&_h1]:border-[#1E3A8A] [&_h1]:bg-[#EEF2FF] [&_h1]:py-1 [&_h1]:rounded-r-[6px]
+                [&_h2]:text-sm [&_h2]:font-bold [&_h2]:text-[#1E3A8A] [&_h2]:mt-5 [&_h2]:mb-1.5 [&_h2]:pl-3 [&_h2]:border-l-4 [&_h2]:border-[#A5B4FC] [&_h2]:bg-[#EEF2FF] [&_h2]:py-0.5 [&_h2]:rounded-r-[6px]
+                [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-[#374151] [&_h3]:mt-4 [&_h3]:mb-1
+                [&_p]:leading-[1.8] [&_p]:text-[#374151]
+                [&_ul]:ml-5 [&_ul]:space-y-1.5
+                [&_ol]:ml-5 [&_ol]:space-y-1.5
+                [&_li]:text-sm [&_li]:leading-[1.7] [&_li]:text-[#374151]
+                [&_strong]:font-semibold [&_strong]:text-[#1E1B4B]
+                [&_em]:italic [&_em]:text-[#6B7280]"
+            >
               {formatText(summary)}
             </div>
           </div>
         </div>
+
+        {/* Generate New */}
+        <button
+          onClick={onClose}
+          className="w-full px-4 py-2.5 border-2 border-[#C7D2FE] text-[#1E3A8A] bg-[#EEF2FF] rounded-[10px] text-sm font-semibold hover:bg-[#E0E7FF] transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Generate New
+        </button>
       </div>
     )
   }
@@ -358,17 +384,17 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
     
     if (flashcards.length === 0) {
       return (
-        <div className={`bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-xl p-8 text-center`}>
-          <p className="text-slate-600 text-sm font-semibold mb-2">No flashcards generated</p>
+        <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-8 text-center">
+          <p className="text-sm text-[#6B7280] mb-2">No flashcards generated.</p>
           {resultData.flashcards?.raw_response && (
-            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-xs text-yellow-800 font-semibold mb-1">Generation Error</p>
-              <p className="text-xs text-yellow-700">The AI returned invalid JSON. Try generating again.</p>
+            <div className="mt-3 bg-[#EEF2FF] border border-[#C7D2FE] rounded-[8px] p-3">
+              <p className="text-xs text-[#1E3A8A] font-medium mb-0.5">Generation Error</p>
+              <p className="text-xs text-[#78350F]">The AI returned invalid JSON. Try generating again.</p>
             </div>
           )}
           <details className="mt-4">
-            <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-700">Show debug info</summary>
-            <pre className="mt-2 text-[10px] text-left bg-slate-100 p-2 rounded max-h-40 overflow-auto">
+            <summary className="text-xs text-[#9CA3AF] cursor-pointer hover:text-[#6B7280]">Show debug info</summary>
+            <pre className="mt-2 text-[10px] text-left bg-[#F9FAFB] border border-[#E5E7EB] p-2 rounded-[6px] max-h-40 overflow-auto">
               {JSON.stringify(resultData, null, 2)}
             </pre>
           </details>
@@ -378,106 +404,141 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
 
     return (
       <div className="space-y-4">
-        {/* Progress indicator */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-600">
-            Card {currentCard + 1} of {flashcards.length}
+        {/* Dark navy header */}
+        <div
+          className="rounded-[12px] overflow-hidden"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(135deg, #1E3A8A 0%, #0F1F5C 100%)',
+            backgroundSize: '22px 22px, cover',
+            boxShadow: '0 4px 24px rgba(30,58,138,0.18)',
+          }}
+        >
+          <div className="px-6 pt-6 pb-5">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-12 h-12 rounded-[10px] bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white leading-tight mb-1">Flashcards</h3>
+                <div className="flex items-center flex-wrap gap-1.5">
+                  {resultData.options?.flashcard_type && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 text-blue-200 border border-white/20 capitalize">
+                      {resultData.options.flashcard_type}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+                <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Cards</p>
+                <p className="text-xl font-bold text-white">{flashcards.length}</p>
+              </div>
+              <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+                <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Progress</p>
+                <p className="text-xl font-bold text-white">{currentCard + 1} / {flashcards.length}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Cards */}
+        <div className="space-y-3">
+          {/* Progress indicator */}
+          <div className="flex items-center justify-between px-1">
+          <span className="text-xs font-medium text-[#6B7280]">
+            {currentCard + 1} / {flashcards.length} cards
           </span>
           <div className="flex gap-1">
             {flashcards.map((_, idx) => (
               <div
                 key={idx}
-                className={`h-1 w-8 rounded-full transition-colors ${
-                  idx === currentCard ? 'bg-purple-500' : 'bg-slate-200'
+                onClick={() => setCurrentCard(idx)}
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                  idx === currentCard
+                    ? 'w-6 bg-[#1E3A8A]'
+                    : idx < currentCard
+                    ? 'w-3 bg-[#A5B4FC]'
+                    : 'w-3 bg-[#E5E7EB]'
                 }`}
               />
             ))}
           </div>
         </div>
 
-        {/* Flashcard display */}
+        {/* Flashcard */}
         <div
-          className={`relative rounded-xl p-8 min-h-[300px] cursor-pointer transition-all duration-300 hover:scale-[1.02] ${
-            flippedCards[currentCard]
-              ? 'bg-gradient-to-br from-emerald-50 to-teal-100 border-2 border-emerald-300 shadow-lg shadow-emerald-100'
-              : 'bg-gradient-to-br from-violet-50 to-purple-100 border-2 border-purple-300 shadow-lg shadow-purple-100'
-          }`}
+          className="relative rounded-[12px] min-h-[300px] cursor-pointer select-none transition-all duration-300 bg-[#EEF2FF] border border-[#A5B4FC]"
+          style={{ boxShadow: '0 4px 24px rgba(99, 102, 241, 0.10)' }}
           onClick={() => toggleFlip(currentCard)}
         >
-          {/* Front/Back indicator with icon */}
-          <div className="absolute top-4 left-4 flex items-center gap-2">
-            {flippedCards[currentCard] ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 rounded-full">
-                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-xs font-bold text-white">ANSWER</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 rounded-full">
-                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-xs font-bold text-white">QUESTION</span>
-              </div>
-            )}
-          </div>
-
-          {/* Card number */}
-          <div className="absolute top-4 right-4">
-            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-              flippedCards[currentCard] 
-                ? 'bg-emerald-200 text-emerald-800' 
-                : 'bg-purple-200 text-purple-800'
-            }`}>
-              #{currentCard + 1}
+          {/* Side label badge */}
+          <div className="absolute top-4 left-5">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-white text-[#1E3A8A] border border-[#A5B4FC]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#1E3A8A]"></span>
+              {flippedCards[currentCard] ? 'Answer' : 'Question'}
             </span>
           </div>
 
+          {/* Card number */}
+          <div className="absolute top-4 right-5">
+            <span className="text-xs font-medium text-[#A5B4FC]">#{currentCard + 1}</span>
+          </div>
+
           {/* Content */}
-          <div className="flex items-center justify-center min-h-[220px] px-6 mt-6">
-            <div className={`text-lg font-medium text-center leading-relaxed max-w-2xl ${
-              flippedCards[currentCard] ? 'text-emerald-900' : 'text-purple-900'
-            }`}>
-              {formatText(flippedCards[currentCard] 
-                ? flashcards[currentCard].back 
+          <div className="flex items-center justify-center min-h-[300px] px-10 pt-14 pb-12">
+            <div className="text-base font-medium text-[#1E1B4B] text-center leading-relaxed max-w-xl">
+              {formatText(flippedCards[currentCard]
+                ? flashcards[currentCard].back
                 : flashcards[currentCard].front
               )}
             </div>
           </div>
 
-          {/* Flip indicator */}
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${
-              flippedCards[currentCard] 
-                ? 'bg-emerald-200/60 text-emerald-700' 
-                : 'bg-purple-200/60 text-purple-700'
-            }`}>
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span className="text-xs font-semibold">Tap to flip</span>
-            </div>
+          {/* Flip hint */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+            <span className="text-xs text-[#A5B4FC]">click to flip</span>
           </div>
         </div>
 
-        {/* Navigation buttons */}
-        <div className="flex gap-3">
+        {/* Navigation */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setCurrentCard(Math.max(0, currentCard - 1))}
             disabled={currentCard === 0}
-            className="flex-1 px-4 py-2.5 bg-white border-2 border-slate-300 text-slate-700 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors text-sm"
+            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-[#E5E7EB] text-sm text-[#374151] rounded-[8px] hover:bg-[#F9FAFB] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
             Previous
           </button>
+          <div className="flex-1" />
           <button
             onClick={() => setCurrentCard(Math.min(flashcards.length - 1, currentCard + 1))}
             disabled={currentCard === flashcards.length - 1}
-            className={`flex-1 px-4 py-2.5 bg-gradient-to-r ${colors.button} text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm`}
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#1E3A8A] border border-[#1E3A8A] text-sm text-white rounded-[8px] hover:bg-[#1C337A] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Next
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
+        </div>
+
+        {/* Generate New */}
+        <button
+          onClick={onClose}
+          className="w-full px-4 py-2.5 border-2 border-[#C7D2FE] text-[#1E3A8A] bg-[#EEF2FF] rounded-[10px] text-sm font-semibold hover:bg-[#E0E7FF] transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Generate New
+        </button>
       </div>
     )
   }
@@ -564,23 +625,23 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
       }
       
       return (
-        <div className={`bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-xl p-8 text-center`}>
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 rounded-full mb-4">
+        <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-8 text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-[#FEF9C3] rounded-[8px] mb-4">
             <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
           
-          <p className="text-slate-800 text-lg font-bold mb-2">{errorTitle}</p>
-          <p className="text-slate-600 text-sm mb-4">{errorMessage}</p>
+          <p className="text-[#111827] text-base font-semibold mb-1">{errorTitle}</p>
+          <p className="text-[#6B7280] text-sm mb-4">{errorMessage}</p>
           
           {errorSuggestions.length > 0 && (
-            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-              <p className="text-xs font-semibold text-blue-900 mb-2">Suggestions:</p>
-              <ul className="text-xs text-blue-800 space-y-1">
+            <div className="mt-4 bg-[#EEF2FF] border border-[#C7D2FE] rounded-[8px] p-4 text-left">
+              <p className="text-xs font-medium text-[#1E3A8A] mb-2">Suggestions</p>
+              <ul className="text-xs text-[#1C337A] space-y-1">
                 {errorSuggestions.map((suggestion, idx) => (
                   <li key={idx} className="flex items-start gap-2">
-                    <span className="text-blue-500 mt-0.5">•</span>
+                    <span className="text-[#1E3A8A] mt-0.5">•</span>
                     <span>{suggestion}</span>
                   </li>
                 ))}
@@ -589,20 +650,20 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
           )}
           
           <details className="mt-4">
-            <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-700 inline-flex items-center gap-1">
+            <summary className="text-xs text-[#9CA3AF] cursor-pointer hover:text-[#6B7280] inline-flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Technical details
             </summary>
-            <pre className="mt-2 text-[10px] text-left bg-slate-100 p-3 rounded max-h-40 overflow-auto">
+            <pre className="mt-2 text-[10px] text-left bg-[#F9FAFB] border border-[#E5E7EB] p-3 rounded-[8px] max-h-40 overflow-auto">
               {JSON.stringify(resultData, null, 2)}
             </pre>
           </details>
           
           <button
             onClick={onClose}
-            className="mt-6 px-4 py-2 bg-white border-2 border-slate-300 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors"
+            className="mt-6 px-4 py-2 border border-[#E5E7EB] text-[#374151] rounded-[8px] text-sm hover:bg-[#F9FAFB] transition-colors"
           >
             ← Back to Actions
           </button>
@@ -621,17 +682,50 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
     const score = showResults ? calculateScore() : null
 
     // Practice Mode: Display all questions with answers and explanations directly
+    const difficulty = resultData.options?.difficulty || 'Medium'
+
     if (!isTestMode) {
       return (
         <div className="space-y-4">
-          {/* Mode badge */}
-          <div className="flex items-center justify-between">
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border-2 border-blue-300">
-              Practice Mode
-            </span>
-            <span className="text-xs text-slate-500 font-medium">
-              {quiz.length} Questions
-            </span>
+          {/* Dark navy header */}
+          <div
+            className="rounded-[12px] overflow-hidden"
+            style={{
+              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(135deg, #1E3A8A 0%, #0F1F5C 100%)',
+              backgroundSize: '22px 22px, cover',
+              boxShadow: '0 4px 24px rgba(30,58,138,0.18)',
+            }}
+          >
+            <div className="px-6 pt-6 pb-5">
+              <div className="flex items-start gap-4 mb-5">
+                <div className="w-12 h-12 rounded-[10px] bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white leading-tight mb-1">Quiz</h3>
+                  <div className="flex items-center flex-wrap gap-1.5">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 text-blue-200 border border-white/20">
+                      Practice Mode
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 text-blue-200 border border-white/20 capitalize">
+                      {difficulty}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+                  <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Questions</p>
+                  <p className="text-xl font-bold text-white">{quiz.length}</p>
+                </div>
+                <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+                  <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Difficulty</p>
+                  <p className="text-sm font-semibold text-white capitalize">{difficulty}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Questions with answers shown */}
@@ -639,13 +733,13 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
             {quiz.map((question, qIndex) => (
               <div
                 key={question.id}
-                className="bg-white border-2 border-slate-200 rounded-xl p-5"
+                className="bg-white border border-[#E5E7EB] rounded-[8px] p-5"
               >
                 <div className="flex items-start gap-3 mb-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm bg-slate-100 text-slate-700">
+                  <div className="flex-shrink-0 w-7 h-7 rounded-[6px] flex items-center justify-center text-xs font-medium bg-[#F3F4F6] text-[#6B7280]">
                     {qIndex + 1}
                   </div>
-                  <div className="flex-1 text-sm font-semibold text-slate-900 leading-relaxed">
+                  <div className="flex-1 text-sm font-semibold text-[#111827] leading-relaxed">
                     {formatText(question.question)}
                   </div>
                 </div>
@@ -657,25 +751,25 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
                     return (
                       <div
                         key={key}
-                        className={`w-full text-left px-4 py-3 rounded-lg border-2 text-sm ${
+                        className={`w-full text-left px-4 py-2.5 rounded-[8px] border text-sm ${
                           isCorrectOption
-                            ? 'border-green-400 bg-green-50'
-                            : 'border-slate-200 bg-slate-50'
+                            ? 'border-[#BBF7D0] bg-[#F0FDF4]'
+                            : 'border-[#E5E7EB] bg-white'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                          <span className={`flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center text-xs font-medium ${
                             isCorrectOption
-                              ? 'border-green-500 bg-green-500 text-white'
-                              : 'border-slate-300 text-slate-600'
+                              ? 'border-[#16A34A] bg-[#16A34A] text-white'
+                              : 'border-[#D1D5DB] text-[#6B7280]'
                           }`}>
                             {key}
                           </span>
-                          <div className="text-slate-800 flex-1">
+                          <div className="text-[#374151] flex-1">
                             {formatText(value)}
                           </div>
                           {isCorrectOption && (
-                            <span className="flex-shrink-0 text-green-600 font-semibold text-xs">Correct</span>
+                            <span className="flex-shrink-0 text-[#16A34A] text-xs">Correct</span>
                           )}
                         </div>
                       </div>
@@ -685,9 +779,9 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
 
                 {/* Show explanation if available */}
                 {question.explanation && question.explanation.trim() !== '' && (
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs font-semibold text-blue-900 mb-1.5"> Explanation:</p>
-                    <div className="text-xs text-blue-800">
+                  <div className="mt-3 p-3 bg-[#EEF2FF] border border-[#C7D2FE] rounded-[8px]">
+                    <p className="text-xs font-medium text-[#1E3A8A] mb-1">Explanation</p>
+                    <div className="text-xs text-[#1C337A]">
                       {formatText(question.explanation)}
                     </div>
                   </div>
@@ -695,6 +789,17 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
               </div>
             ))}
           </div>
+
+          {/* Generate New */}
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2.5 border-2 border-[#C7D2FE] text-[#1E3A8A] bg-[#EEF2FF] rounded-[10px] text-sm font-semibold hover:bg-[#E0E7FF] transition-colors flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Generate New
+          </button>
         </div>
       )
     }
@@ -702,39 +807,68 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
     // Test Mode: Interactive quiz with user selection and evaluation
     return (
       <div className="space-y-4">
-        {/* Mode badge */}
-        <div className="flex items-center justify-between">
-          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 border-2 border-red-300">
-            Test Mode
-          </span>
-          {showResults && (
-            <span className="text-xs text-slate-500 font-medium">
-              Score: {score.correct}/{score.total} ({score.percentage}%)
-            </span>
-          )}
+        {/* Dark navy header */}
+        <div
+          className="rounded-[12px] overflow-hidden"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(135deg, #1E3A8A 0%, #0F1F5C 100%)',
+            backgroundSize: '22px 22px, cover',
+            boxShadow: '0 4px 24px rgba(30,58,138,0.18)',
+          }}
+        >
+          <div className="px-6 pt-6 pb-5">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="w-12 h-12 rounded-[10px] bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white leading-tight mb-1">Quiz</h3>
+                <div className="flex items-center flex-wrap gap-1.5">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 text-blue-200 border border-white/20">
+                    Test Mode
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/15 text-blue-200 border border-white/20 capitalize">
+                    {difficulty}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+                <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Questions</p>
+                <p className="text-xl font-bold text-white">{quiz.length}</p>
+              </div>
+              <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+                <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Difficulty</p>
+                <p className="text-sm font-semibold text-white capitalize">{difficulty}</p>
+              </div>
+              <div className="bg-white/10 border border-white/15 rounded-[8px] p-3">
+                <p className="text-[10px] text-blue-300 font-medium mb-0.5 uppercase tracking-wide">Score</p>
+                <p className="text-sm font-semibold text-white">{showResults ? `${score.percentage}%` : '—'}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Score display */}
         {showResults && (
-          <div className={`bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-xl p-6`}>
-            <div className="text-center">
-              <div className={`inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br ${
-                score.percentage >= 80 ? 'from-green-500 to-emerald-500' :
-                score.percentage >= 60 ? 'from-yellow-500 to-orange-500' :
-                'from-red-500 to-pink-500'
-              } rounded-full mb-3`}>
-                <span className="text-3xl font-bold text-white">{score.percentage}%</span>
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-1">
-                Test Completed!
-              </h3>
-              <p className="text-sm text-slate-600">
-                You got {score.correct} out of {score.total} questions correct
-              </p>
-              <p className="text-xs text-slate-500 mt-2">
-                Grade: {score.percentage >= 90 ? 'A' : score.percentage >= 80 ? 'B' : score.percentage >= 70 ? 'C' : score.percentage >= 60 ? 'D' : 'F'}
-              </p>
+          <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-8 text-center">
+            <div className={`text-5xl font-bold mb-2 ${
+              score.percentage >= 80 ? 'text-[#16A34A]' :
+              score.percentage >= 60 ? 'text-[#D97706]' :
+              'text-[#DC2626]'
+            }`}>
+              {score.percentage}%
             </div>
+            <p className="text-sm font-medium text-[#111827] mb-1">Test Completed</p>
+            <p className="text-sm text-[#6B7280]">
+              {score.correct} of {score.total} correct
+            </p>
+            <p className="text-xs text-[#9CA3AF] mt-1">
+              Grade: {score.percentage >= 90 ? 'A' : score.percentage >= 80 ? 'B' : score.percentage >= 70 ? 'C' : score.percentage >= 60 ? 'D' : 'F'}
+            </p>
           </div>
         )}
 
@@ -747,25 +881,25 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
             return (
               <div
                 key={question.id}
-                className={`bg-white border-2 ${
+                className={`bg-white border ${
                   showResults
                     ? isCorrect
-                      ? 'border-green-300'
-                      : 'border-red-300'
-                    : 'border-slate-200'
-                } rounded-xl p-5`}
+                      ? 'border-[#BBF7D0]'
+                      : 'border-[#FECACA]'
+                    : 'border-[#E5E7EB]'
+                } rounded-[8px] p-5`}
               >
                 <div className="flex items-start gap-3 mb-4">
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                  <div className={`flex-shrink-0 w-7 h-7 rounded-[6px] flex items-center justify-center text-xs font-medium ${
                     showResults
                       ? isCorrect
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                      : 'bg-slate-100 text-slate-700'
+                        ? 'bg-[#F0FDF4] text-[#16A34A]'
+                        : 'bg-[#FEF2F2] text-[#DC2626]'
+                      : 'bg-[#F3F4F6] text-[#6B7280]'
                   }`}>
                     {qIndex + 1}
                   </div>
-                  <div className="flex-1 text-sm font-semibold text-slate-900 leading-relaxed">
+                  <div className="flex-1 text-sm font-semibold text-[#111827] leading-relaxed">
                     {formatText(question.question)}
                   </div>
                 </div>
@@ -780,33 +914,33 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
                         key={key}
                         onClick={() => handleAnswerSelect(question.id, key)}
                         disabled={showResults}
-                        className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all text-sm ${
+                        className={`w-full text-left px-4 py-2.5 rounded-[8px] border transition-colors text-sm ${
                           showResults
                             ? isCorrectOption
-                              ? 'border-green-400 bg-green-50'
+                              ? 'border-[#BBF7D0] bg-[#F0FDF4]'
                               : isSelected
-                              ? 'border-red-400 bg-red-50'
-                              : 'border-slate-200 bg-slate-50'
+                              ? 'border-[#FECACA] bg-[#FEF2F2]'
+                              : 'border-[#E5E7EB] bg-white'
                             : isSelected
-                            ? 'border-green-400 bg-green-50'
-                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                            ? 'border-[#1E3A8A] bg-[#EEF2FF]'
+                            : 'border-[#E5E7EB] hover:border-[#D1D5DB] bg-white'
                         } ${showResults ? 'cursor-default' : 'cursor-pointer'}`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${
+                          <span className={`flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center text-xs font-medium ${
                             showResults
                               ? isCorrectOption
-                                ? 'border-green-500 bg-green-500 text-white'
+                                ? 'border-[#16A34A] bg-[#16A34A] text-white'
                                 : isSelected
-                                ? 'border-red-500 bg-red-500 text-white'
-                                : 'border-slate-300 text-slate-600'
+                                ? 'border-[#DC2626] bg-[#DC2626] text-white'
+                                : 'border-[#D1D5DB] text-[#6B7280]'
                               : isSelected
-                              ? 'border-green-500 bg-green-500 text-white'
-                              : 'border-slate-300 text-slate-600'
+                              ? 'border-[#1E3A8A] bg-[#1E3A8A] text-white'
+                              : 'border-[#D1D5DB] text-[#6B7280]'
                           }`}>
                             {key}
                           </span>
-                          <div className="text-slate-800 flex-1">
+                          <div className="text-[#374151] flex-1">
                             {formatText(value)}
                           </div>
                         </div>
@@ -817,15 +951,15 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
 
                 {/* Test mode: Show what was wrong */}
                 {showResults && !isCorrect && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-xs font-semibold text-red-900 mb-1.5">Incorrect!</p>
-                    <p className="text-xs text-red-800">
+                  <div className="mt-3 p-3 bg-[#FEF2F2] border border-[#FECACA] rounded-[8px]">
+                    <p className="text-xs font-medium text-[#B91C1C] mb-1">Incorrect</p>
+                    <p className="text-xs text-[#DC2626]">
                       Your answer: <span className="font-semibold">{userAnswers[question.id]}</span>
-                      {' '} • Correct answer: <span className="font-semibold">{question.correct_answer}</span>
+                      {' · '} Correct: <span className="font-semibold">{question.correct_answer}</span>
                     </p>
                     {question.explanation && question.explanation.trim() !== '' && (
-                      <div className="mt-2 pt-2 border-t border-red-200">
-                        <p className="text-xs text-red-800">{formatText(question.explanation)}</p>
+                      <div className="mt-2 pt-2 border-t border-[#FECACA]">
+                        <p className="text-xs text-[#DC2626]">{formatText(question.explanation)}</p>
                       </div>
                     )}
                   </div>
@@ -839,15 +973,15 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
         {!showResults && (
           <div className="space-y-2">
             {Object.keys(userAnswers).length === quiz.length && (
-              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-3">
-                <p className="text-xs text-yellow-800 font-semibold mb-1">Ready to Submit Test?</p>
-                <p className="text-xs text-yellow-700">You won't be able to change your answers after submission.</p>
+              <div className="bg-[#EEF2FF] border border-[#C7D2FE] rounded-[8px] p-3">
+                <p className="text-xs font-medium text-[#1E3A8A] mb-0.5">Ready to submit?</p>
+                <p className="text-xs text-[#B45309]">You won't be able to change your answers after submission.</p>
               </div>
             )}
             <button
               onClick={handleSubmitQuiz}
               disabled={Object.keys(userAnswers).length !== quiz.length}
-              className={`w-full px-4 py-3 bg-gradient-to-r ${colors.button} text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm`}
+              className="w-full px-4 py-2.5 bg-[#1E3A8A] hover:bg-[#1C337A] text-white rounded-[8px] text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {Object.keys(userAnswers).length === quiz.length
                 ? 'Submit Test'
@@ -864,11 +998,22 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
               setUserAnswers({})
               setShowResults(false)
             }}
-            className={`w-full px-4 py-3 bg-gradient-to-r ${colors.button} text-white rounded-lg font-semibold transition-all text-sm`}
+            className="w-full px-4 py-2.5 bg-[#1E3A8A] hover:bg-[#1C337A] text-white rounded-[8px] text-sm font-medium transition-colors"
           >
-            🔄 Retake Test
+            Retake Test
           </button>
         )}
+
+        {/* Generate New */}
+        <button
+          onClick={onClose}
+          className="w-full px-4 py-2.5 border-2 border-[#C7D2FE] text-[#1E3A8A] bg-[#EEF2FF] rounded-[10px] text-sm font-semibold hover:bg-[#E0E7FF] transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Generate New
+        </button>
       </div>
     )
   }
@@ -881,16 +1026,12 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
   // Render Chatbot
   const renderChatbot = () => {
     return (
-      <div className={`bg-gradient-to-br ${colors.bg} border-2 ${colors.border} rounded-xl p-8 text-center`}>
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl mb-3">
-          {actionIcons.chatbot && (
-            <div className="text-white">
-              {actionIcons.chatbot}
-            </div>
-          )}
+      <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-8 text-center">
+        <div className="inline-flex items-center justify-center w-12 h-12 bg-[#EEF2FF] rounded-[8px] mb-3 text-[#1E3A8A]">
+          {actionIcons.chatbot}
         </div>
-        <h4 className="text-lg font-bold text-slate-900 mb-2">Chatbot Feature</h4>
-        <p className="text-sm text-slate-600">
+        <h4 className="text-base font-semibold text-[#111827] mb-1">Chatbot</h4>
+        <p className="text-sm text-[#6B7280]">
           Interactive chat is handled in the Chatbot tab
         </p>
       </div>
@@ -912,8 +1053,8 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
         return renderChatbot()
       default:
         return (
-          <div className="bg-slate-50 border-2 border-slate-200 rounded-xl p-8 text-center">
-            <p className="text-slate-600 text-sm">Unknown action type</p>
+          <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[8px] p-8 text-center">
+            <p className="text-[#6B7280] text-sm">Unknown action type</p>
           </div>
         )
     }
@@ -921,32 +1062,6 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
 
   return (
     <div className="space-y-4 animate-fadeIn">
-      {/* Result header */}
-      <div className="flex items-center justify-between border-b-2 border-slate-200 pb-4">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 bg-gradient-to-br ${colors.gradient} rounded-lg flex items-center justify-center text-white`}>
-            {actionIcons[activeAction]}
-          </div>
-          <div>
-            <h3 className={`text-lg font-bold bg-gradient-to-r ${colors.gradient} bg-clip-text text-transparent`}>
-              {actionNames[activeAction]}
-            </h3>
-            <p className="text-xs text-slate-500">Generated result</p>
-          </div>
-        </div>
-        
-        <button
-          onClick={onClose}
-          className="px-4 py-2 bg-white border-2 border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors text-sm flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Generate Another
-        </button>
-      </div>
-
-      {/* Result content */}
       {renderContent()}
     </div>
   )
