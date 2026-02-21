@@ -49,6 +49,10 @@ pip install -r requirements.txt
 
 ## Usage
 
+Ctrl+Shift+B to use the Start EDUGEN task that runs both servers in parallel.
+
+Ctrl+Shift+P → Tasks: Run Task → Stop EDUGEN.
+
 1. Start the server:
 ```bash
 cd backend

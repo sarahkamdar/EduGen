@@ -20,7 +20,8 @@ temp/
 *.log
 
 # IDE and Editor files
-.vscode/
+.vscode/*
+!.vscode/tasks.json
 .idea/
 *.swp
 *.swo
