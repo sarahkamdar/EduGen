@@ -4,6 +4,7 @@ from typing import Optional
 from bson import ObjectId
 import json
 import asyncio
+import requests as _requests
 from app.auth.dependencies import get_current_user
 from app.database.connection import get_database
 from app.models.content import (
@@ -26,6 +27,20 @@ from app.services.chatbot import chat_with_content as chatbot_service
 from app.services.ppt import generate_presentation
 from app.models.quiz_attempt import QuizEvaluationRequest, QuizAttemptCreate, create_quiz_attempt
 
+def _get_youtube_title(youtube_url: str) -> str:
+    """Fetch the real video title from YouTube oEmbed API."""
+    try:
+        resp = _requests.get(
+            "https://www.youtube.com/oembed",
+            params={"url": youtube_url, "format": "json"},
+            timeout=5
+        )
+        if resp.status_code == 200:
+            return resp.json().get("title", "YouTube Video")
+    except Exception:
+        pass
+    return "YouTube Video"
+
 router = APIRouter(prefix="/content", tags=["Content"])
 
 @router.post("/upload")
@@ -41,17 +56,15 @@ async def upload_content(
         # Generate meaningful title
         title = None
         if file:
-            # Use filename without extension
             title = file.filename.rsplit('.', 1)[0][:100] if file.filename else f"{input_type.capitalize()} Document"
         elif youtube_url:
-            title = "YouTube Video"
+            title = _get_youtube_title(youtube_url)
         elif text:
-            # Use first 50 chars of text as title
             title = text[:50].strip() + ("..." if len(text) > 50 else "")
-        
+
         if not title:
             title = f"{input_type.capitalize()} Content"
-        
+
         content_data = ContentCreate(
             user_id=current_user["user_id"],
             input_type=input_type,
@@ -125,10 +138,10 @@ async def upload_content_stream(
             if file:
                 title = file.filename.rsplit('.', 1)[0][:100] if hasattr(file, 'filename') and file.filename else f"{input_type.capitalize()} Document"
             elif youtube_url:
-                title = "YouTube Video"
+                title = _get_youtube_title(youtube_url)
             elif text:
                 title = text[:50].strip() + ("..." if len(text) > 50 else "")
-            
+
             if not title:
                 title = f"{input_type.capitalize()} Content"
             

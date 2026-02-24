@@ -48,18 +48,61 @@ async def normalize_video(file: UploadFile, progress_callback: Optional[Callable
     
     return transcript
 
+def _extract_video_id(youtube_url: str) -> Optional[str]:
+    """Extract YouTube video ID from various URL formats."""
+    patterns = [
+        r'(?:v=|youtu\.be/|embed/|shorts/)([a-zA-Z0-9_-]{11})',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, youtube_url)
+        if match:
+            return match.group(1)
+    return None
+
 async def normalize_youtube(youtube_url: str, progress_callback: Optional[Callable[[str, str, int], Awaitable[None]]] = None) -> str:
+    # --- Fast path: fetch YouTube captions directly ---
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+
+        if progress_callback:
+            await progress_callback("upload", "Fetching YouTube transcript...", 20)
+
+        video_id = _extract_video_id(youtube_url)
+        if not video_id:
+            raise ValueError("Could not extract video ID from URL")
+
+        def fetch_transcript():
+            api = YouTubeTranscriptApi()
+            fetched = api.fetch(video_id)
+            return " ".join(snippet.text for snippet in fetched)
+
+        text = await run_blocking(fetch_transcript)
+
+        if not text.strip():
+            raise ValueError("Empty transcript returned")
+
+        if progress_callback:
+            await progress_callback("finalize", "Finalizing content...", 90)
+
+        return clean_text(text)
+
+    except Exception as caption_error:
+        # Caption fetch failed — fall back to audio download + Whisper
+        print(f"[YouTube] Caption fetch failed ({caption_error}), falling back to audio download...")
+        pass
+
+    # --- Slow path fallback: download audio and transcribe with Whisper ---
     try:
         import yt_dlp
-        
+
         temp_dir = Path("temp")
         temp_dir.mkdir(exist_ok=True)
-        
+
         if progress_callback:
-            await progress_callback("upload", "Connecting to YouTube...", 10)
-        
+            await progress_callback("upload", "No captions found. Downloading audio...", 10)
+
         audio_file = temp_dir / "youtube_audio.mp3"
-        
+
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': str(audio_file.with_suffix('')),
@@ -79,28 +122,28 @@ async def normalize_youtube(youtube_url: str, progress_callback: Optional[Callab
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
         }
-        
+
         if progress_callback:
             await progress_callback("extract", "Downloading audio from YouTube...", 30)
-        
+
         def download_youtube():
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([youtube_url])
-        
+
         await run_blocking(download_youtube)
-        
+
         if progress_callback:
             await progress_callback("transcribe", "Transcribing audio to text...", 60)
-        
+
         transcript = await run_blocking(transcribe_audio, str(audio_file))
         await run_blocking(os.remove, audio_file)
-        
+
         if progress_callback:
             await progress_callback("finalize", "Finalizing content...", 90)
-        
+
         return transcript
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"YouTube download failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"YouTube processing failed: {str(e)}")
 
 async def normalize_pdf(file: UploadFile, progress_callback: Optional[Callable[[str, str, int], Awaitable[None]]] = None) -> str:
     try:

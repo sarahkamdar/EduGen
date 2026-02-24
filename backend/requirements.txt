@@ -12,6 +12,7 @@ pymongo
 bcrypt
 python-jose[cryptography]
 yt-dlp
+youtube-transcript-api
 pypdf
 python-docx
 email-validator

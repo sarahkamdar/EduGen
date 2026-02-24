@@ -4,7 +4,7 @@
     {
       "label": "Start Backend",
       "type": "shell",
-      "command": "venv\\Scripts\\activate; python -m uvicorn app.main:app --reload",
+      "command": ".\\venv\\Scripts\\Activate.ps1; python -m uvicorn app.main:app --reload",
       "options": {
         "cwd": "${workspaceFolder}\\backend",
         "shell": {
@@ -24,9 +24,9 @@
         }
       },
       "presentation": {
-        "group": "edugen",
-        "panel": "dedicated",
-        "reveal": "always"
+        "panel": "new",
+        "reveal": "always",
+        "focus": true
       }
     },
     {
@@ -48,9 +48,9 @@
         }
       },
       "presentation": {
-        "group": "edugen",
-        "panel": "dedicated",
-        "reveal": "always"
+        "panel": "new",
+        "reveal": "always",
+        "focus": true
       }
     },
     {
