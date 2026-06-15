@@ -190,7 +190,7 @@ const HomePage = ({ onNavigateToAuth, onGetStarted }) => {
               </div>
               <h3 className="text-sm font-semibold text-[#111827] mb-1">Upload</h3>
               <p className="text-sm text-[#6B7280] leading-relaxed">
-                Add a video, document, URL, or type a topic.
+                Add a video, document, YouTube link, or type a topic.
               </p>
             </div>
 

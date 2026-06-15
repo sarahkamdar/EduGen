@@ -32,13 +32,10 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Fetched outputs:', data)
         const chatbotOutput = data.outputs?.find(output => output.feature === 'chatbot')
-        console.log('Chatbot output:', chatbotOutput)
         
         if (chatbotOutput && chatbotOutput.output && chatbotOutput.output.conversation) {
           const conversation = chatbotOutput.output.conversation
-          console.log('Loading conversation with', conversation.length, 'messages')
           // Filter out any messages without text (defensive check)
           const validMessages = conversation.filter(msg => 
             msg && msg.sender && msg.text && msg.text.trim()
@@ -49,7 +46,6 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
             text: msg.text,
             timestamp: new Date()
           }))
-          console.log('Valid messages loaded:', formattedMessages.length)
           setMessages(formattedMessages)
           return true // Conversation found
         }
@@ -73,13 +69,11 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
     
     // Only fetch if this is a different content than what we have loaded
     if (contentId !== loadedContentIdRef.current) {
-      console.log('Loading conversation for contentId:', contentId)
       loadedContentIdRef.current = contentId
       setError('')
       
       // Fetch existing conversation
       fetchExistingConversation(contentId).then((found) => {
-        console.log('Conversation found:', found)
         // Only show welcome message if no conversation exists
         if (!found) {
           setMessages([
@@ -95,6 +89,16 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
     }
   }, [contentId]) // Only depend on contentId, not loadedContentId
 
+  const renderInlineBold = (text) => {
+    const parts = text.split(/(\*\*.*?\*\*)/g)
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        return <strong key={index} className="font-bold">{part.slice(2, -2)}</strong>
+      }
+      return <React.Fragment key={index}>{part}</React.Fragment>
+    })
+  }
+
   // Format markdown-style text for display
   const formatMessage = (text) => {
     // Remove markdown headers (# symbols at start of lines)
@@ -109,16 +113,13 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
         return null
       }
       
-      // Handle bold text **text**
-      let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
-      
       // Handle bullet points starting with - or •
       if (line.trim().startsWith('- ') || line.trim().startsWith('• ')) {
         const content = line.trim().substring(2)
         return (
           <div key={index} className="flex gap-2 ml-2 mb-1">
             <span className="text-indigo-600 mt-0.5">•</span>
-            <span dangerouslySetInnerHTML={{ __html: content.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>') }} />
+            <span>{renderInlineBold(content)}</span>
           </div>
         )
       }
@@ -129,7 +130,7 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
         return (
           <div key={index} className="flex gap-2 ml-2 mb-1">
             <span className="text-indigo-600 font-semibold">{numberedMatch[1]}.</span>
-            <span dangerouslySetInnerHTML={{ __html: numberedMatch[2].replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>') }} />
+            <span>{renderInlineBold(numberedMatch[2])}</span>
           </div>
         )
       }
@@ -147,7 +148,7 @@ function ChatbotUI({ contentId, disabled = false, historicalConversation = null 
       // Regular text
       if (line.trim()) {
         return (
-          <div key={index} className="mb-1" dangerouslySetInnerHTML={{ __html: formattedLine }} />
+          <div key={index} className="mb-1">{renderInlineBold(line)}</div>
         )
       }
       

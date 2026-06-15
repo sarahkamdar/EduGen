@@ -383,7 +383,6 @@ function DashboardLayout() {
    * Loads content but clears all results
    */
   const handleSelectContent = (contentId) => {
-    console.log('[Dashboard] Switching to content:', contentId)
     setContent(prev => ({
       ...prev,
       contentId: contentId,
@@ -431,7 +430,7 @@ function DashboardLayout() {
    */
   const handleUnauthorized = () => {
     localStorage.removeItem('token')
-    window.location.href = '/'
+    window.dispatchEvent(new Event('auth-changed'))
   }
 
   /**
@@ -439,7 +438,7 @@ function DashboardLayout() {
    */
   const handleLogout = () => {
     localStorage.removeItem('token')
-    window.location.href = '/'
+    window.dispatchEvent(new Event('auth-changed'))
   }
 
   /**
@@ -447,7 +446,6 @@ function DashboardLayout() {
    */
   const handleSelectHistoryOutput = async (outputId, feature) => {
     try {
-      console.log('[Dashboard] Loading output:', outputId, 'Feature:', feature)
       const token = localStorage.getItem('token')
       const response = await fetch(`/content/output/${outputId}`, {
         headers: {
@@ -556,7 +554,7 @@ function DashboardLayout() {
       // Refresh history to remove deleted content
       await fetchHistory()
     } catch (error) {
-      alert(`Failed to delete content: ${error.message}`)
+      setErrors(prev => ({ ...prev, generateError: error.message }))
     }
   }
 

@@ -2,7 +2,7 @@ import json
 from typing import Dict, List
 
 def evaluate_quiz(quiz_content: dict, user_responses: List[Dict], mode: str, user_id: str, quiz_id: str) -> dict:
-    questions = quiz_content.get("questions", [])
+    questions = quiz_content.get("quiz", [])
     total_questions = len(questions)
     correct_count = 0
     results = []

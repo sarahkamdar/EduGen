@@ -32,15 +32,15 @@ def generate_summary(text: str, prompt_suffix: str = "Provide a comprehensive an
     
     # Determine instructions based on type
     if "brief" in prompt_suffix.lower() or "short" in prompt_suffix.lower():
-        instruction = "Summarize in 3-5 sentences. Be concise."
+        instruction = "Output only the summary text with no preamble or meta-commentary. Write 3-5 concise sentences covering the key points."
     elif "detailed" in prompt_suffix.lower():
-        instruction = "Provide detailed summary with all key points. Use paragraphs."
+        instruction = "Output only the summary text with no preamble or meta-commentary. Cover all key points in clear paragraphs."
     elif "exam" in prompt_suffix.lower():
-        instruction = "Summarize focusing on exam-relevant concepts, definitions, and formulas."
+        instruction = "Output only the summary text with no preamble or meta-commentary. Focus on exam-relevant concepts, definitions, and formulas."
     elif "revision" in prompt_suffix.lower():
-        instruction = "Create quick revision summary with bullet points of key facts."
+        instruction = "Output only the summary text with no preamble or meta-commentary. Use bullet points listing the key facts."
     else:
-        instruction = "Summarize key points clearly."
+        instruction = "Output only the summary text with no preamble or meta-commentary. Cover the key points clearly."
     
     # For long text, chunk and combine
     if len(text) > 3000:
@@ -53,7 +53,10 @@ def generate_summary(text: str, prompt_suffix: str = "Provide a comprehensive an
             try:
                 response = client.chat.completions.create(
                     model="llama-3.1-8b-instant",
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=[
+                        {"role": "system", "content": "You are a concise summarizer. Never start your response with phrases like 'Here is', 'Here are', 'This is a summary', or any other preamble. Output only the summary content directly."},
+                        {"role": "user", "content": prompt}
+                    ],
                     temperature=0.3,
                     max_tokens=300
                 )
@@ -73,7 +76,10 @@ def generate_summary(text: str, prompt_suffix: str = "Provide a comprehensive an
     
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {"role": "system", "content": "You are a concise summarizer. Never start your response with phrases like 'Here is', 'Here are', 'This is a summary', or any other preamble. Output only the summary content directly."},
+            {"role": "user", "content": prompt}
+        ],
         temperature=0.3,
         max_tokens=400
     )

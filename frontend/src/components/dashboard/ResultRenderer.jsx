@@ -378,10 +378,6 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
       }
     }
     
-    // Debug logging
-    console.log('Flashcards resultData:', resultData)
-    console.log('Extracted flashcards:', flashcards)
-    
     if (flashcards.length === 0) {
       return (
         <div className="bg-white border border-[#E5E7EB] rounded-[8px] p-8 text-center">
@@ -566,11 +562,6 @@ function ResultRenderer({ activeAction, resultData, onClose }) {
     // Extract quiz mode (Practice or Test)
     const quizMode = resultData.mode || 'Practice'
     const isTestMode = quizMode.toLowerCase() === 'test'
-    
-    // Debug logging
-    console.log('Quiz resultData:', resultData)
-    console.log('Extracted quiz:', quiz)
-    console.log('Quiz mode:', quizMode)
     
     if (quiz.length === 0) {
       const rawResponse = resultData.quiz?.raw_response || 'Unknown error'

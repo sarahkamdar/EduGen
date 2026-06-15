@@ -23,7 +23,6 @@ function OutputHistory({ contentId, onSelectOutput }) {
 
     try {
       const token = localStorage.getItem('token')
-      console.log('[OutputHistory] Fetching outputs for content:', contentId)
       const response = await fetch(`/content/${contentId}/outputs`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -35,10 +34,8 @@ function OutputHistory({ contentId, onSelectOutput }) {
       }
 
       const data = await response.json()
-      console.log('[OutputHistory] Loaded', data.outputs?.length || 0, 'outputs')
       setOutputs(data.outputs || [])
     } catch (err) {
-      console.error('[OutputHistory] Error:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -68,7 +65,7 @@ function OutputHistory({ contentId, onSelectOutput }) {
       // Remove from local state
       setOutputs(prev => prev.filter(o => o.output_id !== outputId))
     } catch (err) {
-      alert(`Error: ${err.message}`)
+      setError(err.message)
     }
   }
 

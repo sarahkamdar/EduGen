@@ -9,13 +9,47 @@ function App() {
   const [authTab, setAuthTab] = useState('login')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const hasValidToken = () => {
     const token = localStorage.getItem('token')
-    if (token) {
-      setIsAuthenticated(true)
-      setShowAuth(false)
+    if (!token) return false
+
+    try {
+      const payloadBase64 = token.split('.')[1]
+      if (!payloadBase64) return false
+      const payload = JSON.parse(atob(payloadBase64))
+
+      if (payload.exp && Date.now() >= payload.exp * 1000) {
+        localStorage.removeItem('token')
+        return false
+      }
+
+      return true
+    } catch {
+      localStorage.removeItem('token')
+      return false
     }
+  }
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      const valid = hasValidToken()
+      setIsAuthenticated(valid)
+
+      if (valid) {
+        setShowAuth(false)
+      }
+    }
+
+    syncAuthState()
     setLoading(false)
+    window.addEventListener('auth-changed', syncAuthState)
+    window.addEventListener('storage', syncAuthState)
+
+    return () => {
+      window.removeEventListener('auth-changed', syncAuthState)
+      window.removeEventListener('storage', syncAuthState)
+    }
+
   }, [])
 
   const handleNavigateToAuth = (tab = 'login') => {

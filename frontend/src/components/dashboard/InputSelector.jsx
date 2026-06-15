@@ -6,6 +6,7 @@ function InputSelector({ onSubmit, loading }) {
   const [urlInput, setUrlInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [dragActive, setDragActive] = useState(false)
+  const [error, setError] = useState('')
 
   const tabs = [
     {
@@ -20,8 +21,8 @@ function InputSelector({ onSubmit, loading }) {
       activeBg: '#EEF2FF',
     },
     {
-      id: 'webpage',
-      label: 'Webpage / YouTube',
+      id: 'youtube',
+      label: 'YouTube URL',
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -50,6 +51,7 @@ function InputSelector({ onSubmit, loading }) {
     setTextInput('')
     setUrlInput('')
     setSelectedFile(null)
+    setError('')
     setActiveTab(tabId)
   }
 
@@ -78,8 +80,10 @@ function InputSelector({ onSubmit, loading }) {
     
     if (validTypes.includes(file.type) || validExtensions.includes(fileExtension)) {
       setSelectedFile(file)
+      setError('')
     } else {
-      alert('Please upload a PDF, Word (.doc/.docx), or Video file (.mp4/.avi/.mov/.mkv/.flv/.wmv)')
+      setSelectedFile(null)
+      setError('Please upload a PDF, Word (.doc/.docx), or video file (.mp4/.avi/.mov/.mkv/.flv/.wmv).')
     }
   }
 
@@ -106,7 +110,7 @@ function InputSelector({ onSubmit, loading }) {
 
   const isValidInput = () => {
     if (activeTab === 'text') return textInput.trim().length > 0
-    if (activeTab === 'webpage') return urlInput.trim().length > 0
+    if (activeTab === 'youtube') return urlInput.trim().length > 0
     if (activeTab === 'files') return selectedFile !== null
     return false
   }
@@ -115,10 +119,11 @@ function InputSelector({ onSubmit, loading }) {
     if (!isValidInput() || loading) return
 
     const formData = new FormData()
+    setError('')
 
     if (activeTab === 'text') {
       formData.append('text', textInput)
-    } else if (activeTab === 'webpage') {
+    } else if (activeTab === 'youtube') {
       formData.append('youtube_url', urlInput)
     } else if (activeTab === 'files') {
       formData.append('file', selectedFile)
@@ -177,19 +182,25 @@ function InputSelector({ onSubmit, loading }) {
           </div>
         )}
 
-        {/* Webpage Input */}
-        {activeTab === 'webpage' && (
+        {/* YouTube Input */}
+        {activeTab === 'youtube' && (
           <div>
             <input
               type="url"
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="Paste a YouTube or webpage URL"
+              placeholder="Paste a YouTube URL"
               className="w-full px-4 py-3 bg-white border border-[#E5E7EB] rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] text-[#111827] placeholder-[#9CA3AF] transition-colors"
             />
             <p className="text-sm text-[#6B7280] mt-3 font-medium">
-              Paste a YouTube or webpage URL. Content will be extracted automatically.
+              Paste a YouTube URL. The transcript will be extracted automatically.
             </p>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 bg-[#FEF2F2] border border-[#FECACA] text-[#B91C1C] px-3 py-2.5 rounded-[8px] text-sm">
+            {error}
           </div>
         )}
 

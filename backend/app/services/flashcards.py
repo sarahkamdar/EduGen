@@ -83,7 +83,10 @@ def generate_flashcards(normalized_text: str, flashcard_type: str = "Concept →
         try:
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": "You output only raw JSON. No preamble, no explanation, no markdown, no text before or after the JSON object."},
+                    {"role": "user", "content": prompt}
+                ],
                 temperature=0.7,
                 max_tokens=400
             )
@@ -119,7 +122,10 @@ def generate_flashcards(normalized_text: str, flashcard_type: str = "Concept →
         try:
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": "You output only raw JSON. No preamble, no explanation, no markdown, no text before or after the JSON object."},
+                    {"role": "user", "content": prompt}
+                ],
                 temperature=0.7,
                 max_tokens=400
             )
