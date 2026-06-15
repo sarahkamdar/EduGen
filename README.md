@@ -384,6 +384,28 @@ Check if the service is running.
 - JWT (python-jose)
 - bcrypt (password hashing)
 
+## Recent Progress (what's implemented)
+
+- `backend/app/utils/s3.py`: S3 helper utilities for uploads and presigned URLs.
+- `backend/app/services/ppt.py`: PPT generation now uploads to S3 when `S3_BUCKET` is configured and returns `s3://...` URIs.
+- `backend/app/routes/content.py`: PPT download endpoint returns presigned S3 URLs when files are stored in S3 (falls back to local `FileResponse`).
+- `backend/requirements.txt`: added `boto3` dependency for AWS integration.
+- Docker and local deploy helpers: added `backend/Dockerfile`, `frontend/Dockerfile`, and `docker-compose.yml` for local testing.
+- Committed the changes as focused commits (deployment scaffolding + app/frontend updates) while keeping editor/task noise out of the commits.
+
+These changes begin the migration from local filesystem storage to S3-backed storage and prepare the repository for CI/CD and ECS deployment.
+
+## Next steps (planned work)
+
+- Refactor `backend/app/services/content_processor.py` to accept S3 inputs and write outputs to S3.
+- Add an SQS producer in the API layer so uploads enqueue work instead of processing synchronously.
+- Implement a GPU worker service that polls SQS, performs transcription/extraction, and writes results to S3 and MongoDB.
+- Replace local file downloads with S3 presigned URLs across endpoints.
+- Move secrets to AWS Secrets Manager and inject them into ECS task definitions.
+- Add GitHub Actions workflows for CI (PR validation) and CD (build & deploy backend/worker to ECR/ECS, deploy frontend to S3/CloudFront).
+
+If you'd like, I can scaffold the SQS producer and worker next, and add example GitHub Actions workflows.
+
 ## Database Schema
 
 ### content collection

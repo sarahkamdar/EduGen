@@ -86,7 +86,7 @@
     {
       "label": "Stop Frontend",
       "type": "shell",
-      "command": "Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; Write-Host 'Frontend stopped.'",
+      "command": "Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }; Write-Host 'Frontend stopped.'",
       "options": {
         "shell": {
           "executable": "powershell.exe",
