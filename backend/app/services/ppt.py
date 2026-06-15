@@ -2,6 +2,7 @@ from groq import Groq
 import os
 import json
 import re
+import time
 import requests
 from io import BytesIO
 from pathlib import Path
@@ -9,7 +10,8 @@ from typing import List, Dict, Optional
 from dotenv import load_dotenv
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
+from pptx.enum.text import PP_ALIGN
+from pptx.enum.shapes import MSO_SHAPE
 from pptx.dml.color import RGBColor
 from PIL import Image
 
@@ -85,138 +87,95 @@ def analyze_content_for_slides(normalized_text: str, slide_count: int = 10) -> D
     
     client = Groq(api_key=api_key)
     
-    # Smart content extraction - get key sections
-    if len(normalized_text) > 5000:
-        # Take beginning (context), middle (core content), and end (conclusion)
-        beginning = normalized_text[:1500]
-        middle_start = len(normalized_text) // 2 - 750
-        middle = normalized_text[middle_start:middle_start + 1500]
-        end = normalized_text[-1500:]
-        text_sample = f"{beginning}\n\n[...content continues...]\n\n{middle}\n\n[...content continues...]\n\n{end}"
+    # Smart content extraction - preserve richer context for deeper slides
+    if len(normalized_text) > 9000:
+        beginning = normalized_text[:2200]
+        quarter_start = max(0, len(normalized_text) // 4 - 1000)
+        quarter = normalized_text[quarter_start:quarter_start + 2000]
+        middle_start = max(0, len(normalized_text) // 2 - 1000)
+        middle = normalized_text[middle_start:middle_start + 2000]
+        three_quarter_start = max(0, (3 * len(normalized_text)) // 4 - 1000)
+        three_quarter = normalized_text[three_quarter_start:three_quarter_start + 2000]
+        end = normalized_text[-2200:]
+        text_sample = (
+            f"{beginning}\n\n[...content continues...]\n\n{quarter}\n\n"
+            f"[...content continues...]\n\n{middle}\n\n[...content continues...]\n\n"
+            f"{three_quarter}\n\n[...content continues...]\n\n{end}"
+        )
     else:
         text_sample = normalized_text
     
-    prompt = f"""You are an expert presentation designer like gamma.ai. Analyze this content and create a visually engaging {slide_count}-slide presentation with VARIED content formats.
+    prompt = f"""You are a professional presentation design expert. Convert the content below into a high-quality {slide_count}-slide deck.
 
-=== CONTENT TO ANALYZE ===
+=== CONTENT ===
 {text_sample}
 
-=== CRITICAL INSTRUCTIONS ===
-READ THE CONTENT ABOVE CAREFULLY. Extract MAXIMUM information from it.
+=== TITLE RULES ===
+- Max 8 words per title
+- Use strong nouns only: e.g. "System Architecture", "Authentication Flow", "Security Model"
+- NEVER use: "Understanding the...", "Introduction to...", "Overview of...", "Exploring..."
+- No sentence-style titles
 
-DO NOT use generic phrases like:
-- "Key Point 1, 2, 3"
-- "Important concept"  
-- "Supporting detail"
+=== BULLET RULES ===
+- Target 4–7 bullets per content slide
+- Each bullet: 8–20 words with real informational density
+- Include concrete details: named entities, parameters, values, units, thresholds, constraints
+- Prefer specific technical phrasing over generic statements
+- Include definitions, examples, edge cases, and implications where relevant
 
-EXTRACT ACTUAL DETAILED INFORMATION:
-- Specific concepts, processes, definitions FROM THE TEXT
-- Facts, statistics, data, examples MENTIONED IN THE TEXT
-- Formulas, equations, mathematical relationships (if applicable)
-- Technical details, terminology, step-by-step explanations
+=== DENSITY RULE ===
+- If a topic needs more than 7 bullets, split into two slides
+- Each content slide should still have one core idea with enough supporting detail
 
-HEADING REQUIREMENTS:
-- Make each heading UNIQUE, DESCRIPTIVE, and ENGAGING
-- Use ACTION WORDS: "Understanding...", "Exploring...", "Mastering...", "Building..."
-- Include SPECIFIC TERMINOLOGY from the content
-- Vary the heading style across slides
+=== FORMULA / TABLE / PROCESS ===
+- Use "formula" whenever the topic has equations, laws, complexity, or measurable expressions
+- Use "table_data" for comparisons (methods, models, versions, metrics, pros/cons, trade-offs)
+- For "table_data": 3–5 headers, 3–6 rows, cell values must be specific
+- Use "steps" for pipelines/algorithms/workflows; 4–6 steps with verb-led actions
+- Use "highlight" for the most important quantitative takeaway (single short line)
+- Use "paragraph" only when a precise definition or interpretation needs one concise explanatory line
 
-CONTENT FORMAT VARIETY (like gamma.ai):
-Use DIFFERENT formats for different slides:
+=== SUMMARY SLIDE RULES ===
+- 4–6 specific technical contributions
+- NO generic statements (e.g. "The system works well")
+- NO vague claims or arbitrary percentages
+- NO future plans
 
-1. EXPLANATORY SLIDES: Use paragraph for context/definitions
-   {{
-     "heading": "Understanding the Concept",
-     "paragraph": "Detailed explanation in 2-3 sentences that provides context and meaning...",
-     "points": ["Supporting fact 1", "Supporting fact 2", "Supporting fact 3"]
-   }}
+=== CONTENT QUALITY RULES ===
+- Avoid placeholders like "key point", "important concept", "supporting detail"
+- Prefer measurable statements if present in source (numbers, formulas, ranges, comparisons)
+- If source contains no numeric values, provide concrete conceptual details rather than vague claims
+- Keep facts grounded in the provided content; do not invent data
 
-2. LIST SLIDES: Pure bullet points for features/steps
-   {{
-     "heading": "Key Components",
-     "points": ["Component 1: Description", "Component 2: Description", ...]
-   }}
+=== SLIDE STRUCTURE ===
+- Slide 1: title slide (slide_type: "title")
+- Slides 2–{slide_count - 1}: content slides (slide_type: "content"), one idea each
+- Slide {slide_count}: summary slide (slide_type: "summary")
 
-3. FORMULA/EQUATION SLIDES: For math/science content
-   {{
-     "heading": "Mathematical Foundation",
-     "paragraph": "Brief explanation of what the formula represents...",
-     "formula": "E = mc²" or "F = ma" or "x = (-b ± √(b²-4ac)) / 2a",
-     "points": ["Variable 1: meaning", "Variable 2: meaning"]
-   }}
-
-4. PROCESS SLIDES: Flow diagrams
-   {{
-     "heading": "The Process Flow",
-     "flow_diagram": true,
-     "steps": ["Step 1", "Step 2", "Step 3"],
-     "points": ["Context point 1", "Context point 2"]
-   }}
-
-5. COMPARISON SLIDES: Tables for structured data
-   {{
-     "heading": "Feature Comparison",
-     "table_data": {{"headers": ["Aspect", "Details"], "rows": [["Row1", "Data1"], ["Row2", "Data2"]]}}
-   }}
-
-6. HIGHLIGHT SLIDES: Emphasize key statistics/quotes
-   {{
-     "heading": "Important Insight",
-     "highlight": "70% improvement in accuracy",
-     "paragraph": "This represents a major breakthrough because...",
-     "points": ["Reason 1", "Reason 2"]
-   }}
-
-FORMULA DETECTION:
-- If content mentions math, physics, chemistry, statistics → include formulas
-- Format formulas clearly: "Area = πr²", "PV = nRT", "σ = √(Σ(x-μ)²/N)"
-- Explain what each variable represents
-
-Create EXACTLY {slide_count} slides with MIXED FORMATS:
-
-1. Slide 1 (Title):
-   - Extract the MAIN TOPIC from the text
-   - Create informative subtitle
-   - Provide descriptive image_keyword (FULL topic)
-
-2. Slides 2-{slide_count-1} (Content slides - VARY THE FORMAT):
-   - ALTERNATE between: Paragraph+Points, Pure Points, Formula+Explanation, Flow Diagram, Table
-   - Create UNIQUE, ENGAGING heading
-   - Add image_keyword for relevant images (e.g., "python logo", "tensorflow logo", "neural network diagram", "data science visualization")
-   - For EXPLANATORY content: Add paragraph (2-3 sentences) + supporting points
-   - For FORMULAS: Add formula + variable explanations
-   - For PROCESSES: Add flow_diagram + steps
-   - For COMPARISONS: Add table_data
-   - For STATISTICS/KEY FACTS: Add highlight + context
-   
-3. Slide {slide_count} (Summary):
-   - Unique heading based on content
-   - Paragraph summarizing main insight
-   - 3-5 comprehensive takeaways
-   - Provide descriptive image_keyword
-
-Return ONLY valid JSON (no markdown, no explanation):
+Return ONLY valid JSON:
 {{
-  "title": "[ACTUAL main topic from text]",
-  "subtitle": "[What the content discusses in detail]",
+  "title": "...",
+  "subtitle": "...",
   "slides": [
     {{
       "slide_type": "title",
-      "heading": "[Actual topic - descriptive]",
-      "subtitle": "[Actual description]",
-      "image_keyword": "[FULL descriptive topic, e.g. 'artificial intelligence neural networks']"
+      "heading": "Strong Noun Title",
+      "subtitle": "One descriptive sentence"
     }},
     {{
       "slide_type": "content",
-      "heading": "[UNIQUE engaging heading from text]",
-      "image_keyword": "[Relevant logo/image like 'python logo', 'react logo', 'machine learning diagram', empty string if not applicable]",
-      "paragraph": "[2-3 sentence explanation if explanatory slide]",
-      "formula": "[Mathematical formula if applicable]",
-      "highlight": "[Key statistic/fact if highlight slide]",
+      "heading": "Strong Noun Title",
+      "formula": "",
+      "highlight": "",
       "flow_diagram": false,
-      "points": ["[Detailed fact 1]", "[Detailed fact 2]", "[Detailed fact 3]"],
-      "table_data": null,
-      "steps": null
+      "steps": null,
+      "points": ["Concise bullet 1", "Concise bullet 2", "Concise bullet 3"],
+      "table_data": null
+    }},
+    {{
+      "slide_type": "summary",
+      "heading": "Key Contributions",
+      "points": ["Technical contribution 1", "Technical contribution 2", "Technical contribution 3"]
     }}
   ]
 }}"""
@@ -224,7 +183,10 @@ Return ONLY valid JSON (no markdown, no explanation):
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "You output only raw JSON. No preamble, no explanation, no markdown, no text before or after the JSON object."},
+                {"role": "user", "content": prompt}
+            ],
             temperature=0.3,
             max_tokens=4000
         )
@@ -250,64 +212,29 @@ Return ONLY valid JSON (no markdown, no explanation):
                 
                 if is_generic:
                     print("WARNING: AI returned generic content. Retrying with stronger prompt...")
-                    # Retry once with even more explicit instructions
-                    retry_prompt = f"""STOP! You are giving generic, shallow responses.
-
-I need you to READ THIS CONTENT and extract DETAILED, COMPREHENSIVE information:
+                    # Retry with strict design rules
+                    retry_prompt = f"""The previous response used generic or weak content. Read this text carefully:
 
 {text_sample}
 
-Create {slide_count} slides with UNIQUE, ENGAGING headings and VARIED, RICH content formats.
+Create {slide_count} slides with STRICT design rules:
+- Titles: max 8 words, strong nouns (e.g. "System Architecture", "Security Model")
+- NEVER: "Understanding the...", "Introduction to...", "Overview of..."
+- "points": 4–7 detailed bullets per content slide, each 8–20 words
+- Include details, values, formulas, constraints, and comparisons wherever available
+- Use "table_data" for structured comparisons and "formula" for equations/expressions
+- If a topic needs >7 bullets, split into two slides
+- Summary slide: 4–6 specific technical contributions, no generic statements
+- DO NOT use: "Key Point", "Important Concept", "Supporting Detail", "The system works"
 
-HEADING REQUIREMENTS:
-- UNIQUE and DESCRIPTIVE (not "Key Point 1", "Overview", etc.)
-- Use ACTION WORDS: "Understanding...", "Exploring...", "Mastering..."
-- Include SPECIFIC TERMINOLOGY from content
-
-CONTENT VARIETY (like gamma.ai):
-- ALTERNATE formats: Paragraph+Points, Pure Points, Formula+Explanation, Flow Diagram, Table
-- Add "paragraph" for explanatory content (2-3 sentences)
-- Add "formula" for math/science content (e.g., "E = mc²", "F = ma")
-- Add "highlight" for key statistics (e.g., "70% improvement")
-- Add "flow_diagram: true" and "steps" array for processes
-- Add "table_data" for comparisons
-
-EXAMPLES:
-1. Explanatory slide:
-{{
-  "heading": "Understanding the Core Concept",
-  "paragraph": "This fundamental principle explains how the system operates at a deep level...",
-  "points": ["Specific detail 1", "Specific detail 2", "Specific detail 3"]
-}}
-
-2. Formula slide:
-{{
-  "heading": "The Mathematical Foundation",
-  "formula": "Area = πr²",
-  "points": ["π (pi) ≈ 3.14159", "r represents radius", "Result in square units"]
-}}
-
-3. Highlight slide:
-{{
-  "heading": "Key Performance Metrics",
-  "highlight": "85% accuracy achieved",
-  "paragraph": "This represents a major breakthrough in the field...",
-  "points": ["Tested on 10,000 samples", "Outperforms previous models"]
-}}
-
-4. Process flow slide:
-{{
-  "heading": "Understanding the Photosynthesis Cycle",
-  "flow_diagram": true,
-  "steps": ["Light absorption by chlorophyll", "Water splitting (photolysis)", "ATP generation", "Carbon fixation"],
-  "points": ["Occurs in chloroplasts", "Produces oxygen as byproduct"]
-}}
-
-Return JSON with ACTUAL, DETAILED content from the text:"""
+Return ONLY valid JSON using the same schema as before."""
                     
                     response = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role": "user", "content": retry_prompt}],
+                        messages=[
+                            {"role": "system", "content": "You output only raw JSON. No preamble, no explanation, no markdown, no text before or after the JSON object."},
+                            {"role": "user", "content": retry_prompt}
+                        ],
                         temperature=0.2,
                         max_tokens=4000
                     )
@@ -422,431 +349,295 @@ def resize_image_for_slide(image_stream: BytesIO, max_width: int = 8, max_height
         print(f"Image resize error: {e}")
         return image_stream
 
-def create_flow_diagram(slide, steps: list, theme: Dict, start_x: float = 1.5, start_y: float = 2.5):
-    """Create a flow diagram with connected boxes for process steps."""
-    try:
-        from pptx.enum.shapes import MSO_SHAPE
-        from pptx.util import Pt
-        
-        box_width = Inches(2.6)
-        box_height = Inches(0.65)
-        spacing = Inches(0.5)
-        
-        num_steps = len(steps[:5])  # Limit to 5 steps
-        
-        for i, step in enumerate(steps[:5]):
-            # Skip empty steps
-            if not step or not str(step).strip():
-                continue
-                
-            # Calculate position (arrange vertically for better readability)
-            x = Inches(start_x)
-            y = Inches(start_y) + i * (box_height + spacing)
-            
-            # Create rounded rectangle shape
-            shape = slide.shapes.add_shape(
-                MSO_SHAPE.ROUNDED_RECTANGLE,
-                x, y, box_width, box_height
-            )
-            
-            # Style the box
-            shape.fill.solid()
-            shape.fill.fore_color.rgb = theme["accent_color"]
-            shape.line.color.rgb = theme["title_color"]
-            shape.line.width = Pt(2)
-            
-            # Add step number and text
-            text_frame = shape.text_frame
-            text_frame.text = f"{i+1}. {str(step).strip()}"
-            text_frame.word_wrap = True
-            text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-            text_frame.margin_left = Inches(0.1)
-            text_frame.margin_right = Inches(0.1)
-            
-            paragraph = text_frame.paragraphs[0]
-            paragraph.font.size = Pt(13)
-            paragraph.font.bold = True
-            paragraph.font.color.rgb = RGBColor(255, 255, 255)
-            paragraph.alignment = PP_ALIGN.CENTER
-            
-            # Add arrow to next step
-            if i < num_steps - 1:
-                # Arrow connector
-                arrow_start_y = y + box_height
-                arrow_end_y = y + box_height + spacing
-                arrow_x = x + box_width / 2
-                
-                connector = slide.shapes.add_connector(
-                    2,  # Straight connector
-                    Inches(arrow_x), Inches(arrow_start_y),
-                    Inches(arrow_x), Inches(arrow_end_y)
-                )
-                connector.line.color.rgb = theme["accent_color"]
-                connector.line.width = Pt(3)
-                
-    except Exception as e:
-        print(f"Error creating flow diagram: {e}")
+def _style_title_placeholder(ph, theme: Dict, font_size: int = 32, color: RGBColor = None):
+    """Apply consistent title styling to a placeholder."""
+    tf = ph.text_frame
+    tf.word_wrap = True
+    for para in tf.paragraphs:
+        for run in para.runs:
+            run.font.size = Pt(font_size)
+            run.font.bold = True
+            run.font.color.rgb = color or theme["title_color"]
+        para.font.size = Pt(font_size)
+        para.font.bold = True
+        para.font.color.rgb = color or theme["title_color"]
+
+
+def _apply_basic_slide_layout(slide, theme: Dict):
+    """Apply a simple, clean base layout to a slide."""
+    slide.background.fill.solid()
+    slide.background.fill.fore_color.rgb = theme["bg_color"]
+
+    top_bar = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE,
+        Inches(0), Inches(0), Inches(10), Inches(0.22)
+    )
+    top_bar.fill.solid()
+    top_bar.fill.fore_color.rgb = theme["accent_color"]
+    top_bar.line.color.rgb = theme["accent_color"]
+
+    footer_line = slide.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE,
+        Inches(0), Inches(7.38), Inches(10), Inches(0.06)
+    )
+    footer_line.fill.solid()
+    footer_line.fill.fore_color.rgb = theme["subtitle_color"]
+    footer_line.line.color.rgb = theme["subtitle_color"]
+
+
+def _add_bullet_to_body(tf, text: str, theme: Dict, font_size: int = 18, bold: bool = False,
+                        color: RGBColor = None, prefix: str = ""):
+    """Add a single bullet paragraph to a text frame."""
+    para = tf.add_paragraph()
+    para.text = f"{prefix}{text.strip()}"
+    para.level = 0
+    para.font.size = Pt(font_size)
+    para.font.bold = bold
+    para.font.color.rgb = color or theme["text_color"]
+    para.space_before = Pt(2)
+    para.space_after = Pt(2)
+    para.line_spacing = 1.15
 
 def create_title_slide(prs: Presentation, slide_data: Dict, theme: Dict, include_images: bool = True):
-    """Create a title slide with optional background image."""
-    # Use blank layout (index 6 if available, otherwise use first available)
-    try:
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-    except IndexError:
-        slide = prs.slides.add_slide(prs.slide_layouts[0])
-    
-    # Add background image if available
-    if include_images and "image_keyword" in slide_data:
-        img_data = fetch_relevant_image(slide_data["image_keyword"])
-        if img_data:
-            try:
-                # Add as background with slight overlay
-                left = Inches(0)
-                top = Inches(0)
-                slide.shapes.add_picture(img_data, left, top, width=Inches(10), height=Inches(7.5))
-            except Exception as e:
-                print(f"Error adding title slide background image: {e}")
-    
-    # Add semi-transparent overlay for text readability
-    shape = slide.shapes.add_shape(
-        1,  # Rectangle
-        Inches(0), Inches(2.2),
-        Inches(10), Inches(3.2)
-    )
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = RGBColor(0, 0, 0)
-    shape.fill.transparency = 0.3
-    shape.line.fill.background()
-    
-    # Title
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(9), Inches(1.2))
-    title_frame = title_box.text_frame
-    title_frame.text = slide_data.get("heading", "Presentation Title")
-    title_frame.word_wrap = True
-    title_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-    title_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-    title_frame.paragraphs[0].font.size = Pt(44)
-    title_frame.paragraphs[0].font.bold = True
-    title_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-    
-    # Subtitle
-    if "subtitle" in slide_data:
-        subtitle_box = slide.shapes.add_textbox(Inches(0.5), Inches(3.9), Inches(9), Inches(1.0))
-        subtitle_frame = subtitle_box.text_frame
-        subtitle_frame.text = slide_data["subtitle"]
-        subtitle_frame.word_wrap = True
-        subtitle_frame.vertical_anchor = MSO_ANCHOR.TOP
-        subtitle_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-        subtitle_frame.paragraphs[0].font.size = Pt(20)
-        subtitle_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-        subtitle_frame.paragraphs[0].font.italic = True
+    """Create a title slide using layout 0 (Title Slide) placeholders."""
+    # Layout 0 = Title Slide: placeholder[0]=title, placeholder[1]=subtitle
+    layout = prs.slide_layouts[0]
+    slide = prs.slides.add_slide(layout)
+    _apply_basic_slide_layout(slide, theme)
+
+    # Always populate title placeholder
+    title_ph = slide.placeholders[0]
+    title_ph.left = Inches(0.8)
+    title_ph.top = Inches(2.0)
+    title_ph.width = Inches(8.4)
+    title_ph.height = Inches(1.4)
+    title_ph.text = (slide_data.get("heading") or "Presentation").strip()[:80]
+    _style_title_placeholder(title_ph, theme, font_size=40, color=theme["title_color"])
+    for para in title_ph.text_frame.paragraphs:
+        para.alignment = PP_ALIGN.CENTER
+
+    # Always populate subtitle placeholder
+    subtitle_ph = slide.placeholders[1]
+    subtitle_ph.left = Inches(1.2)
+    subtitle_ph.top = Inches(3.7)
+    subtitle_ph.width = Inches(7.6)
+    subtitle_ph.height = Inches(1.0)
+    subtitle_text = (slide_data.get("subtitle") or "").strip()[:120]
+    subtitle_ph.text = subtitle_text
+    for para in subtitle_ph.text_frame.paragraphs:
+        para.font.size = Pt(20)
+        para.font.color.rgb = theme["subtitle_color"]
+        para.font.italic = True
+        para.alignment = PP_ALIGN.CENTER
 
 def create_content_slide(prs: Presentation, slide_data: Dict, theme: Dict, include_images: bool = True):
-    """Create a content slide with varied content types (paragraphs, formulas, highlights, bullets)."""
-    # Use blank layout (index 6 if available, otherwise use first available)
-    try:
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-    except IndexError:
-        slide = prs.slides.add_slide(prs.slide_layouts[0])
-    
-    # Background
-    background = slide.shapes.add_shape(
-        1,  # Rectangle
-        Inches(0), Inches(0),
-        Inches(10), Inches(7.5)
-    )
-    background.fill.solid()
-    background.fill.fore_color.rgb = theme["bg_color"]
-    background.line.fill.background()
-    
-    # Add small image/logo if image_keyword provided (for tech topics, logos, etc.)
-    if include_images and "image_keyword" in slide_data and slide_data["image_keyword"]:
-        img_data = fetch_relevant_image(slide_data["image_keyword"])
-        if img_data:
-            # Add small image in top-right corner
-            try:
-                slide.shapes.add_picture(
-                    img_data, 
-                    Inches(8.2), Inches(0.3), 
-                    width=Inches(1.5)
-                )
-            except Exception as e:
-                print(f"Error adding content slide image: {e}")
-    
-    # Title with accent line
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(7.5), Inches(0.7))
-    title_frame = title_box.text_frame
-    title_frame.text = slide_data.get("heading", "Slide Title")
-    title_frame.word_wrap = True
-    title_frame.vertical_anchor = MSO_ANCHOR.TOP
-    title_frame.paragraphs[0].font.size = Pt(30)
-    title_frame.paragraphs[0].font.bold = True
-    title_frame.paragraphs[0].font.color.rgb = theme["title_color"]
-    
-    # Add decorative accent line under title
-    accent_line = slide.shapes.add_shape(
-        1,  # Rectangle
-        Inches(0.5), Inches(1.05),
-        Inches(1.8), Inches(0.05)
-    )
-    accent_line.fill.solid()
-    accent_line.fill.fore_color.rgb = theme["accent_color"]
-    accent_line.line.fill.background()
-    
-    # Check content type and layout
-    has_flow_diagram = slide_data.get("flow_diagram", False)
-    has_table = "table_data" in slide_data and slide_data.get("table_data")
-    has_paragraph = "paragraph" in slide_data and slide_data.get("paragraph")
-    has_formula = "formula" in slide_data and slide_data.get("formula")
-    has_highlight = "highlight" in slide_data and slide_data.get("highlight")
-    
-    current_y = 1.5  # Starting Y position for content
-    
-    # Add flow diagram if specified
-    if has_flow_diagram and "steps" in slide_data:
-        steps = slide_data.get("steps", [])
-        if steps:
-            create_flow_diagram(slide, steps, theme, start_x=5.5, start_y=1.8)
-        
-        # Add supporting points on the left side
-        points = slide_data.get("points", [])
-        if points:
-            content_box = slide.shapes.add_textbox(Inches(0.7), Inches(1.8), Inches(4.3), Inches(5.4))
-            text_frame = content_box.text_frame
-            text_frame.word_wrap = True
-            text_frame.vertical_anchor = MSO_ANCHOR.TOP
-            
-            for i, point in enumerate(points[:5]):
-                if point and str(point).strip():  # Validate point is not empty
-                    p = text_frame.paragraphs[0] if i == 0 else text_frame.add_paragraph()
-                    p.text = str(point).strip()
-                    p.level = 0
-                    p.font.size = Pt(15)
-                    p.font.color.rgb = theme["text_color"]
-                    p.space_before = Pt(6)
-                    p.space_after = Pt(6)
-                    p.line_spacing = 1.2
-        return  # Skip regular content layout
-    
-    # Add highlight box if present (like gamma.ai key statistics)
-    if has_highlight:
-        highlight_box = slide.shapes.add_shape(
-            1,  # Rectangle
-            Inches(0.7), Inches(current_y),
-            Inches(8.6), Inches(0.8)
-        )
-        highlight_box.fill.solid()
-        highlight_box.fill.fore_color.rgb = theme["accent_color"]
-        highlight_box.line.fill.background()
-        
-        # Add highlight text
-        highlight_frame = highlight_box.text_frame
-        highlight_frame.text = slide_data["highlight"]
-        highlight_frame.word_wrap = True
-        highlight_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-        highlight_frame.paragraphs[0].font.size = Pt(26)
-        highlight_frame.paragraphs[0].font.bold = True
-        highlight_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-        highlight_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-        
-        current_y += 0.95
-    
-    # Add explanatory paragraph if present (like gamma.ai)
-    if has_paragraph:
-        para_box = slide.shapes.add_textbox(Inches(0.7), Inches(current_y), Inches(8.6), Inches(1.0))
-        para_frame = para_box.text_frame
-        para_frame.text = slide_data["paragraph"]
-        para_frame.word_wrap = True
-        para_frame.paragraphs[0].font.size = Pt(16)
-        para_frame.paragraphs[0].font.color.rgb = theme["text_color"]
-        para_frame.paragraphs[0].line_spacing = 1.3
-        para_frame.paragraphs[0].space_after = Pt(8)
-        
-        current_y += 1.15
-    
-    # Add formula box if present (for math/science content)
-    if has_formula:
-        formula_box = slide.shapes.add_shape(
-            1,  # Rectangle
-            Inches(1.5), Inches(current_y),
-            Inches(7), Inches(0.75)
-        )
-        formula_box.fill.solid()
-        formula_box.fill.fore_color.rgb = RGBColor(248, 250, 252)  # Light gray background
-        formula_box.line.color.rgb = theme["accent_color"]
-        formula_box.line.width = Pt(2)
-        
-        # Add formula text
-        formula_frame = formula_box.text_frame
-        formula_frame.text = slide_data["formula"]
-        formula_frame.word_wrap = True
-        formula_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-        formula_frame.paragraphs[0].font.size = Pt(24)
-        formula_frame.paragraphs[0].font.bold = True
-        formula_frame.paragraphs[0].font.color.rgb = theme["title_color"]
-        # Use standard font instead of Cambria Math for compatibility
+    """Create a content slide using layout 1 (Title + Content) placeholders.
+
+        Content priority order written into the body placeholder:
+      1. highlight  (single bold line)
+      2. formula    (single bold line, monospaced style)
+            3. paragraph  (single explanatory line)
+            4. steps      (numbered, max 6)
+            5. points     (bulleted, max 7)
+    Tables are added as a native table shape below the placeholder area.
+    """
+    # Layout 1 = Title and Content: placeholder[0]=title, placeholder[1]=body
+    layout = prs.slide_layouts[1]
+    slide = prs.slides.add_slide(layout)
+    _apply_basic_slide_layout(slide, theme)
+
+    # Capture table data early so body area can be sized accordingly
+    table_data = slide_data.get("table_data")
+
+    # --- Title placeholder ---
+    title_ph = slide.placeholders[0]
+    title_ph.left = Inches(0.6)
+    title_ph.top = Inches(0.45)
+    title_ph.width = Inches(8.8)
+    title_ph.height = Inches(0.75)
+    heading = (slide_data.get("heading") or "Slide").strip()[:80]
+    title_ph.text = heading
+    _style_title_placeholder(title_ph, theme, font_size=28)
+
+    # --- Body placeholder ---
+    body_ph = slide.placeholders[1]
+    body_ph.left = Inches(0.6)
+    body_ph.top = Inches(1.35)
+    body_ph.width = Inches(8.8)
+    body_ph.height = Inches(2.55) if table_data else Inches(5.6)
+    tf = body_ph.text_frame
+    tf.word_wrap = True
+    tf.margin_left = Inches(0.04)
+    tf.margin_right = Inches(0.04)
+    tf.margin_top = Inches(0.03)
+    tf.margin_bottom = Inches(0.03)
+
+    # Clear the default empty paragraph that pptx inserts
+    # by writing directly to the first paragraph
+    first_written = False
+
+    def write_line(text: str, bold: bool = False, font_size: int = 18,
+                   color: RGBColor = None, prefix: str = ""):
+        nonlocal first_written
+        clean = str(text).strip()
+        if not clean:
+            return
+        if not first_written:
+            p = tf.paragraphs[0]
+            p.text = f"{prefix}{clean}"
+            p.level = 0
+            p.font.size = Pt(font_size)
+            p.font.bold = bold
+            p.font.color.rgb = color or theme["text_color"]
+            p.space_before = Pt(2)
+            p.space_after = Pt(2)
+            p.line_spacing = 1.1
+            first_written = True
+        else:
+            _add_bullet_to_body(tf, f"{prefix}{clean}", theme, font_size, bold, color)
+
+    # 1. Highlight line (single key stat — one line only)
+    highlight = (slide_data.get("highlight") or "").strip()
+    if highlight:
+        # Truncate to max 12 words
+        words = highlight.split()
+        if len(words) > 12:
+            highlight = " ".join(words[:12]) + "…"
+        write_line(highlight, bold=True, font_size=22, color=theme["accent_color"])
+
+    # 2. Formula line (one line)
+    formula = (slide_data.get("formula") or "").strip()
+    if formula:
+        write_line(formula, bold=True, font_size=20, color=theme["title_color"])
+
+    # 3. Optional explanatory line
+    paragraph = (slide_data.get("paragraph") or "").strip()
+    if paragraph:
+        words = paragraph.split()
+        compact_line = " ".join(words[:26]) + ("…" if len(words) > 26 else "")
+        write_line(compact_line, bold=False, font_size=15, color=theme["subtitle_color"])
+
+    # 4. Steps (process / flow) — max 6, numbered, max 18 words each
+    has_flow = slide_data.get("flow_diagram", False)
+    steps = slide_data.get("steps") or []
+    if has_flow and steps:
+        for i, step in enumerate(steps[:6]):
+            if step and str(step).strip():
+                words = str(step).strip().split()
+                line = " ".join(words[:18]) + ("…" if len(words) > 18 else "")
+                write_line(line, bold=False, font_size=16, prefix=f"{i + 1}.  ")
+
+    # 5. Bullet points — max 7, max 20 words each
+    points = slide_data.get("points") or []
+    bullet_count = 0
+    for pt in points:
+        if bullet_count >= 7:
+            break
+        if pt and str(pt).strip():
+            words = str(pt).strip().split()
+            line = " ".join(words[:20]) + ("…" if len(words) > 20 else "")
+            write_line(line, bold=False, font_size=15, prefix="•  ")
+            bullet_count += 1
+
+    # Ensure body placeholder always has at least one non-empty run
+    if not first_written:
+        tf.paragraphs[0].text = " "
+        tf.paragraphs[0].font.size = Pt(16)
+
+    # --- Optional table shape (added outside placeholder, safe position) ---
+    if table_data:
         try:
-            formula_frame.paragraphs[0].font.name = 'Calibri'
-        except:
-            pass  # Use default font if Calibri not available
-        formula_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-        
-        current_y += 0.9
-    
-    # Determine content layout based on what's present
-    content_width = Inches(8.4)
-    points = slide_data.get("points", [])
-    
-    # Adjust height and max points based on other elements
-    if has_table:
-        content_height = Inches(2.0)
-        max_points = 3
-    elif has_highlight or has_formula:
-        content_height = Inches(7.5 - current_y - 0.2)
-        max_points = 5
-    elif has_paragraph:
-        content_height = Inches(7.5 - current_y - 0.2)
-        max_points = 6
-    else:
-        content_height = Inches(5.8)
-        max_points = 8
-    
-    # Add bullet points if present
-    if points and len(points) > 0:
-        content_box = slide.shapes.add_textbox(Inches(0.7), Inches(current_y), content_width, content_height)
-        text_frame = content_box.text_frame
-        text_frame.word_wrap = True
-        text_frame.vertical_anchor = MSO_ANCHOR.TOP
-        
-        for i, point in enumerate(points[:max_points]):
-            if point and str(point).strip():  # Validate point is not empty
-                p = text_frame.paragraphs[0] if i == 0 else text_frame.add_paragraph()
-                p.text = str(point).strip()
-                p.level = 0
-                p.font.size = Pt(16)
-                p.font.color.rgb = theme["text_color"]
-                p.font.name = 'Calibri'
-                p.space_before = Pt(7)
-                p.space_after = Pt(7)
-                p.line_spacing = 1.25
-    
-    # Add table if table_data is provided
-    if has_table:
-        try:
-            table_data = slide_data["table_data"]
-            headers = table_data.get("headers", [])
-            rows = table_data.get("rows", [])
-            
+            headers = table_data.get("headers") or []
+            rows = table_data.get("rows") or []
             if headers and rows:
                 cols = len(headers)
-                table_rows = len(rows) + 1  # +1 for header
-                
-                # Dynamic table positioning based on current_y
-                table_y = max(current_y + 0.2, 4.5)
-                table_height = min(Inches(2.5), Inches(7.5 - table_y - 0.2))
-                
+                tbl_rows = min(len(rows), 6) + 1   # header + max 6 data rows
                 table = slide.shapes.add_table(
-                    table_rows, cols,
-                    Inches(0.8), Inches(table_y),
-                    Inches(8.4), table_height
+                    tbl_rows, cols,
+                    Inches(0.6), Inches(4.1),
+                    Inches(8.8), Inches(2.9)
                 ).table
-                
-                # Set header row
-                for col_idx, header in enumerate(headers):
-                    cell = table.cell(0, col_idx)
-                    cell.text = str(header) if header else ""
+                # Header row
+                for ci, hdr in enumerate(headers[:cols]):
+                    cell = table.cell(0, ci)
+                    cell.text = str(hdr).strip()
                     cell.fill.solid()
                     cell.fill.fore_color.rgb = theme["accent_color"]
-                    paragraph = cell.text_frame.paragraphs[0]
-                    paragraph.font.bold = True
-                    paragraph.font.size = Pt(13)
-                    paragraph.font.color.rgb = RGBColor(255, 255, 255)
-                    paragraph.alignment = PP_ALIGN.CENTER
-                
-                # Set data rows
-                for row_idx, row_data in enumerate(rows, start=1):
-                    if row_idx >= table_rows:  # Safety check
-                        break
-                    for col_idx, cell_value in enumerate(row_data):
-                        if col_idx < cols:
-                            cell = table.cell(row_idx, col_idx)
-                            cell.text = str(cell_value) if cell_value is not None else ""
-                            paragraph = cell.text_frame.paragraphs[0]
-                            paragraph.font.size = Pt(11)
-                            paragraph.font.color.rgb = theme["text_color"]
+                    cell.text_frame.paragraphs[0].font.bold = True
+                    cell.text_frame.paragraphs[0].font.size = Pt(13)
+                    cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+                    cell.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+                # Data rows
+                for ri, row_data in enumerate(rows[:6], start=1):
+                    for ci, val in enumerate(row_data[:cols]):
+                        cell = table.cell(ri, ci)
+                        cell.text = str(val).strip() if val is not None else ""
+                        cell.text_frame.paragraphs[0].font.size = Pt(12)
+                        cell.text_frame.paragraphs[0].font.color.rgb = theme["text_color"]
         except Exception as e:
-            print(f"Error adding table: {e}")
+            print(f"Table error: {e}")
 
 def create_summary_slide(prs: Presentation, slide_data: Dict, theme: Dict, include_images: bool = True):
-    """Create a summary/conclusion slide with optional background image."""
-    # Use blank layout (index 6 if available, otherwise use first available)
-    try:
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-    except IndexError:
-        slide = prs.slides.add_slide(prs.slide_layouts[0])
-    
-    # Add background image if available
-    if include_images and "image_keyword" in slide_data:
-        img_data = fetch_relevant_image(slide_data["image_keyword"])
-        if img_data:
-            try:
-                slide.shapes.add_picture(img_data, Inches(0), Inches(0), width=Inches(10), height=Inches(7.5))
-            except Exception as e:
-                print(f"Error adding summary slide background image: {e}")
-    
-    # Gradient overlay for text readability
-    background = slide.shapes.add_shape(
-        1,  # Rectangle
-        Inches(0), Inches(0),
-        Inches(10), Inches(7.5)
-    )
-    background.fill.solid()
-    background.fill.fore_color.rgb = RGBColor(*theme["gradient_colors"][0])
-    background.fill.transparency = 0.3 if include_images and "image_keyword" in slide_data else 0
-    background.line.fill.background()
-    
-    # Title
-    title_box = slide.shapes.add_textbox(Inches(1), Inches(2.2), Inches(8), Inches(1.0))
-    title_frame = title_box.text_frame
-    title_frame.text = slide_data.get("heading", "Key Takeaways")
-    title_frame.word_wrap = True
-    title_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-    title_frame.paragraphs[0].font.size = Pt(40)
-    title_frame.paragraphs[0].font.bold = True
-    title_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-    
-    current_y = 3.4
-    
-    # Add summary paragraph if present
-    if "paragraph" in slide_data and slide_data["paragraph"]:
-        para_box = slide.shapes.add_textbox(Inches(1.2), Inches(current_y), Inches(7.6), Inches(0.8))
-        para_frame = para_box.text_frame
-        para_frame.text = slide_data["paragraph"]
-        para_frame.word_wrap = True
-        para_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-        para_frame.paragraphs[0].font.size = Pt(16)
-        para_frame.paragraphs[0].font.italic = True
-        para_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-        para_frame.paragraphs[0].line_spacing = 1.3
-        current_y += 0.95
-    
-    # Subtitle/summary points with better formatting
-    if "points" in slide_data and slide_data["points"]:
-        content_box = slide.shapes.add_textbox(Inches(1.2), Inches(current_y), Inches(7.6), Inches(7.5 - current_y - 0.2))
-        text_frame = content_box.text_frame
-        text_frame.word_wrap = True
-        
-        for i, point in enumerate(slide_data["points"][:5]):
-            if point and str(point).strip():  # Validate point is not empty
-                p = text_frame.paragraphs[0] if i == 0 else text_frame.add_paragraph()
-                p.text = f"✓  {str(point).strip()}"  # Add checkmark for visual appeal
-                p.alignment = PP_ALIGN.LEFT
-                p.font.size = Pt(18)
-                p.font.bold = True
-                p.font.color.rgb = RGBColor(255, 255, 255)
-                p.space_before = Pt(10)
-                p.space_after = Pt(10)
-                p.line_spacing = 1.25
+    """Create the summary/conclusion slide using layout 1 (Title + Content)."""
+    layout = prs.slide_layouts[1]
+    slide = prs.slides.add_slide(layout)
+    _apply_basic_slide_layout(slide, theme)
+
+    # Title placeholder
+    title_ph = slide.placeholders[0]
+    title_ph.left = Inches(0.6)
+    title_ph.top = Inches(0.6)
+    title_ph.width = Inches(8.8)
+    title_ph.height = Inches(0.8)
+    heading = (slide_data.get("heading") or "Key Takeaways").strip()[:80]
+    title_ph.text = heading
+    _style_title_placeholder(title_ph, theme, font_size=32)
+
+    # Body placeholder — bullets only, no paragraph blocks
+    body_ph = slide.placeholders[1]
+    body_ph.left = Inches(0.8)
+    body_ph.top = Inches(1.7)
+    body_ph.width = Inches(8.4)
+    body_ph.height = Inches(4.9)
+    tf = body_ph.text_frame
+    tf.word_wrap = True
+    tf.margin_left = Inches(0.04)
+    tf.margin_right = Inches(0.04)
+
+    first_written = False
+
+    def write_line(text: str, bold: bool = False, font_size: int = 18,
+                   color: RGBColor = None, prefix: str = ""):
+        nonlocal first_written
+        clean = str(text).strip()
+        if not clean:
+            return
+        if not first_written:
+            p = tf.paragraphs[0]
+            p.text = f"{prefix}{clean}"
+            p.level = 0
+            p.font.size = Pt(font_size)
+            p.font.bold = bold
+            p.font.color.rgb = color or theme["text_color"]
+            p.space_before = Pt(4)
+            p.space_after = Pt(4)
+            p.line_spacing = 1.2
+            first_written = True
+        else:
+            _add_bullet_to_body(tf, f"{prefix}{clean}", theme, font_size, bold, color)
+
+    # Key contributions — max 6, max 20 words each, no generic statements
+    points = slide_data.get("points") or []
+    for i, pt in enumerate(points[:6]):
+        if pt and str(pt).strip():
+            words = str(pt).strip().split()
+            line = " ".join(words[:20]) + ("…" if len(words) > 20 else "")
+            write_line(line, bold=True, font_size=16,
+                       color=theme["title_color"], prefix="✓  ")
+
+    if not first_written:
+        tf.paragraphs[0].text = " "
+        tf.paragraphs[0].font.size = Pt(16)
 
 def generate_presentation(
     normalized_text: str,
@@ -896,7 +687,6 @@ def generate_presentation(
     temp_dir.mkdir(exist_ok=True)
     
     # Generate unique filename
-    import time
     filename = f"presentation_{int(time.time())}.pptx"
     filepath = temp_dir / filename
     
@@ -906,5 +696,24 @@ def generate_presentation(
     except Exception as e:
         print(f"Error saving presentation: {e}")
         raise
-    
+
+    # If S3 is configured, upload the presentation and return s3:// URI
+    s3_bucket = os.getenv("S3_BUCKET")
+    if s3_bucket:
+        try:
+            from app.utils.s3 import upload_file_to_s3
+            s3_key = f"presentations/{Path(filepath).name}"
+            s3_uri = upload_file_to_s3(str(filepath), s3_bucket, s3_key)
+
+            # Remove local file after successful upload
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
+
+            return s3_uri
+        except Exception as e:
+            print(f"S3 upload failed: {e}")
+            # Fall back to returning local path
+
     return str(filepath)

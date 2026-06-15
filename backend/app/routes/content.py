@@ -543,19 +543,15 @@ async def evaluate_quiz_attempt(
         except:
             raise HTTPException(status_code=400, detail="Responses must be valid JSON array")
         
-        output = get_content_by_id(quiz_id)
-        if not output:
+        db = get_database()
+        quiz_output = db.generated_outputs.find_one({"_id": ObjectId(quiz_id)})
+        if not quiz_output:
             raise HTTPException(status_code=404, detail="Quiz not found")
         
-        if output["user_id"] != current_user["user_id"]:
+        if quiz_output["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        quiz_content = output.get("normalized_text")
-        if isinstance(quiz_content, str):
-            try:
-                quiz_content = json.loads(quiz_content)
-            except:
-                raise HTTPException(status_code=400, detail="Invalid quiz format")
+        quiz_content = quiz_output.get("output", {})
         
         evaluation_result = evaluate_quiz(
             quiz_content=quiz_content,
@@ -608,7 +604,9 @@ async def get_output_by_id(
             "feature": output["feature"],
             "options": output["options"],
             "output": output["output"],
-            "score": output.get("score"),  # Quiz score if available            "user_answers": output.get("user_answers"),  # User answers for test mode            "created_at": output["created_at"]
+            "score": output.get("score"),
+            "user_answers": output.get("user_answers"),
+            "created_at": output["created_at"]
         }
     except HTTPException:
         raise
@@ -767,20 +765,40 @@ async def download_ppt(
         
         db = get_database()
         generated_outputs = db.generated_outputs
-        
+
         output = generated_outputs.find_one({"_id": ObjectId(output_id)})
-        
+
         if not output:
             raise HTTPException(status_code=404, detail="Output not found")
-        
+
         if output["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         file_path = output["output"].get("file_path")
-        
-        if not file_path or not os.path.exists(file_path):
+
+        if not file_path:
             raise HTTPException(status_code=404, detail="Presentation file not found")
-        
+
+        # If stored in S3, return presigned URL
+        if str(file_path).startswith("s3://"):
+            try:
+                from app.utils.s3 import generate_presigned_url
+                # parse s3://bucket/key
+                _, rest = str(file_path).split("s3://", 1)
+                bucket, key = rest.split('/', 1)
+                url = generate_presigned_url(bucket, key)
+                if not url:
+                    raise HTTPException(status_code=500, detail="Unable to generate presigned URL")
+                return {"download_url": url}
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+
+        # Fallback to local file system
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="Presentation file not found")
+
         return FileResponse(
             path=file_path,
             filename=f"presentation_{output['content_id']}.pptx",
