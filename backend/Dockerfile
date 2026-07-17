@@ -11,10 +11,6 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 
-# Persist Whisper/Hugging Face model cache in a mountable directory
-ENV XDG_CACHE_HOME=/app/model-cache
-ENV HF_HOME=/app/model-cache/huggingface
-
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -23,9 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 
 # Create temp directory for file uploads
-RUN mkdir -p temp /app/model-cache/huggingface
-
-VOLUME ["/app/model-cache"]
+RUN mkdir -p temp
 
 EXPOSE 8000
 
