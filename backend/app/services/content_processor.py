@@ -74,7 +74,19 @@ async def normalize_youtube(youtube_url: str, progress_callback: Callable[[str, 
 
         def fetch_transcript():
             api = YouTubeTranscriptApi()
-            fetched = api.fetch(video_id)
+            try:
+                t_list = api.list(video_id)
+                for t in t_list:
+                    snippets = t.fetch()
+                    if snippets:
+                        return " ".join(snippet.text for snippet in snippets)
+            except Exception:
+                pass
+
+            fetched = api.fetch(
+                video_id,
+                languages=("en", "en-US", "en-GB", "hi", "es", "fr", "de", "ja", "zh", "auto"),
+            )
             return " ".join(snippet.text for snippet in fetched)
 
         text = await run_blocking(fetch_transcript)
