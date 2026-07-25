@@ -4,6 +4,7 @@ name: Deploy Backend (API + Worker)
 # Only when backend code changes are pushed to main.
 # This prevents rebuilding backend images when only frontend changes.
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
