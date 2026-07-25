@@ -29,9 +29,10 @@ jobs:
       - name: Build production bundle
         working-directory: frontend
         env:
-          # VITE_ prefix makes this available in the browser bundle.
-          # Points to ALB DNS name (set in GitHub Secrets).
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          # Empty string = relative URLs (/auth/*, /content/*)
+          # CloudFront proxies /auth/* and /content/* to ALB over HTTPS.
+          # Resolves browser Mixed Content errors.
+          VITE_API_BASE_URL: ""
         run: npm run build
 
       - name: Configure AWS credentials
