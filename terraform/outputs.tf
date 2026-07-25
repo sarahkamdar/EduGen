@@ -8,6 +8,11 @@ output "cloudfront_domain" {
   value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
 }
 
+output "cloudfront_distribution_id" {
+  description = "CloudFront Distribution ID — set as CLOUDFRONT_DISTRIBUTION_ID in GitHub Secrets"
+  value       = aws_cloudfront_distribution.frontend.id
+}
+
 output "ecr_api_uri" {
   description = "ECR URI for the API image — used in buildspec-api.yml"
   value       = aws_ecr_repository.api.repository_url
