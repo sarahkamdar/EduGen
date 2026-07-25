@@ -172,6 +172,28 @@ resource "aws_iam_user_policy" "github_actions" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid      = "ECRAuth"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECRPush"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:CompleteLayerUpload",
+          "ecr:InitiateLayerUpload",
+          "ecr:PutImage",
+          "ecr:UploadLayerPart",
+          "ecr:BatchGetImage"
+        ]
+        Resource = [
+          aws_ecr_repository.api.arn,
+          aws_ecr_repository.worker.arn,
+        ]
+      },
+      {
         Sid    = "CodeBuild"
         Effect = "Allow"
         Action = ["codebuild:StartBuild", "codebuild:BatchGetBuilds"]
