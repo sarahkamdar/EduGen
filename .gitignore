@@ -49,8 +49,6 @@ build/
 Thumbs.db
 .DS_Store
 
-# Project documentation that shouldn't be public
-.github/
 STATE_MANAGEMENT.md
 implementation_plan.md
 
