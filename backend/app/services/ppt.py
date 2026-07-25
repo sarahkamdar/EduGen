@@ -1,19 +1,18 @@
-from groq import Groq
-import os
 import json
-import re
+import os
 import time
-import requests
 from io import BytesIO
 from pathlib import Path
-from typing import List, Dict, Optional
+
+import requests
 from dotenv import load_dotenv
-from pptx import Presentation
-from pptx.util import Inches, Pt
-from pptx.enum.text import PP_ALIGN
-from pptx.enum.shapes import MSO_SHAPE
-from pptx.dml.color import RGBColor
+from groq import Groq
 from PIL import Image
+from pptx import Presentation
+from pptx.dml.color import RGBColor
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import PP_ALIGN
+from pptx.util import Inches, Pt
 
 load_dotenv()
 
@@ -48,19 +47,18 @@ THEMES = {
 def clean_json_response(text: str) -> str:
     """Extract JSON from markdown code blocks."""
     text = text.strip()
-    
+
     if text.startswith('```'):
         first_newline = text.find('\n')
         if first_newline != -1:
             text = text[first_newline + 1:]
         else:
             text = text[3:]
-    
-    if text.endswith('```'):
-        text = text[:-3]
-    
+
+    text = text.removesuffix('```')
+
     text = text.strip()
-    
+
     if '{' in text and '}' in text:
         start = text.find('{')
         brace_count = 0
@@ -73,20 +71,20 @@ def clean_json_response(text: str) -> str:
                 if brace_count == 0:
                     end = i + 1
                     break
-        
+
         if end != -1:
             text = text[start:end]
-    
+
     return text
 
-def analyze_content_for_slides(normalized_text: str, slide_count: int = 10) -> Dict:
+def analyze_content_for_slides(normalized_text: str, slide_count: int = 10) -> dict:
     """Use Groq to structure content into slides with visual suggestions."""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY not set")
-    
+
     client = Groq(api_key=api_key)
-    
+
     # Smart content extraction - preserve richer context for deeper slides
     if len(normalized_text) > 9000:
         beginning = normalized_text[:2200]
@@ -104,7 +102,7 @@ def analyze_content_for_slides(normalized_text: str, slide_count: int = 10) -> D
         )
     else:
         text_sample = normalized_text
-    
+
     prompt = f"""You are a professional presentation design expert. Convert the content below into a high-quality {slide_count}-slide deck.
 
 === CONTENT ===
@@ -190,26 +188,26 @@ Return ONLY valid JSON:
             temperature=0.3,
             max_tokens=4000
         )
-        
+
         result = response.choices[0].message.content
         print(f"AI Response: {result[:500]}...")  # Debug: see what AI returns
-        
+
         cleaned = clean_json_response(result)
         structure = json.loads(cleaned)
-        
+
         # Validate that we got actual content, not generic
         if structure.get("slides"):
             first_content_slide = next((s for s in structure["slides"] if s.get("slide_type") == "content"), None)
             if first_content_slide:
                 heading = first_content_slide.get("heading", "").lower()
                 points = first_content_slide.get("points", [])
-                
+
                 # Check if it's generic content
                 generic_terms = ["key point", "important concept", "supporting detail", "conclusion"]
                 is_generic = any(term in heading for term in generic_terms)
                 if points:
                     is_generic = is_generic or any(term in str(points).lower() for term in generic_terms)
-                
+
                 if is_generic:
                     print("WARNING: AI returned generic content. Retrying with stronger prompt...")
                     # Retry with strict design rules
@@ -228,7 +226,7 @@ Create {slide_count} slides with STRICT design rules:
 - DO NOT use: "Key Point", "Important Concept", "Supporting Detail", "The system works"
 
 Return ONLY valid JSON using the same schema as before."""
-                    
+
                     response = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
@@ -241,24 +239,24 @@ Return ONLY valid JSON using the same schema as before."""
                     result = response.choices[0].message.content
                     cleaned = clean_json_response(result)
                     structure = json.loads(cleaned)
-        
+
         # Trim to exact slide count if needed
         if len(structure.get("slides", [])) > slide_count:
             structure["slides"] = structure["slides"][:slide_count]
-        
-        return structure
-    
-    except Exception as e:
-        print(f"Error in analyze_content_for_slides: {str(e)}")
-        # Return minimal structure with error info
-        raise ValueError(f"Failed to generate presentation structure: {str(e)}")
 
-def fetch_image_unsplash(keyword: str) -> Optional[BytesIO]:
+        return structure
+
+    except Exception as e:
+        print(f"Error in analyze_content_for_slides: {e!s}")
+        # Return minimal structure with error info
+        raise ValueError(f"Failed to generate presentation structure: {e!s}")
+
+def fetch_image_unsplash(keyword: str) -> BytesIO | None:
     """Fetch image from Unsplash API."""
     api_key = os.getenv("UNSPLASH_ACCESS_KEY")
     if not api_key:
         return None
-    
+
     try:
         url = "https://api.unsplash.com/photos/random"
         params = {
@@ -267,25 +265,25 @@ def fetch_image_unsplash(keyword: str) -> Optional[BytesIO]:
             "client_id": api_key
         }
         response = requests.get(url, params=params, timeout=10)
-        
+
         if response.status_code == 200:
             data = response.json()
             image_url = data["urls"]["regular"]  # 1080px width
-            
+
             img_response = requests.get(image_url, timeout=10)
             if img_response.status_code == 200:
                 return BytesIO(img_response.content)
     except Exception as e:
         print(f"Unsplash fetch error: {e}")
-    
+
     return None
 
-def fetch_image_pexels(keyword: str) -> Optional[BytesIO]:
+def fetch_image_pexels(keyword: str) -> BytesIO | None:
     """Fetch image from Pexels API."""
     api_key = os.getenv("PEXELS_API_KEY")
     if not api_key:
         return None
-    
+
     try:
         url = "https://api.pexels.com/v1/search"
         headers = {"Authorization": api_key}
@@ -295,61 +293,61 @@ def fetch_image_pexels(keyword: str) -> Optional[BytesIO]:
             "orientation": "landscape"
         }
         response = requests.get(url, headers=headers, params=params, timeout=10)
-        
+
         if response.status_code == 200:
             data = response.json()
             if data["photos"]:
                 image_url = data["photos"][0]["src"]["large"]  # 940px width
-                
+
                 img_response = requests.get(image_url, timeout=10)
                 if img_response.status_code == 200:
                     return BytesIO(img_response.content)
     except Exception as e:
         print(f"Pexels fetch error: {e}")
-    
+
     return None
 
-def fetch_relevant_image(keyword: str) -> Optional[BytesIO]:
+def fetch_relevant_image(keyword: str) -> BytesIO | None:
     """Try to fetch image from Unsplash first, then Pexels."""
     # Try Unsplash first
     img = fetch_image_unsplash(keyword)
     if img:
         return img
-    
+
     # Fallback to Pexels
     img = fetch_image_pexels(keyword)
     if img:
         return img
-    
+
     return None
 
 def resize_image_for_slide(image_stream: BytesIO, max_width: int = 8, max_height: int = 6) -> BytesIO:
     """Resize image to fit slide dimensions while maintaining aspect ratio."""
     try:
         img = Image.open(image_stream)
-        
+
         # Convert to RGB if needed
         if img.mode != 'RGB':
             img = img.convert('RGB')
-        
+
         # Calculate resize dimensions in inches (convert to pixels at 96 DPI)
         max_width_px = int(max_width * 96)
         max_height_px = int(max_height * 96)
-        
+
         # Resize maintaining aspect ratio
         img.thumbnail((max_width_px, max_height_px), Image.Resampling.LANCZOS)
-        
+
         # Save to BytesIO
         output = BytesIO()
         img.save(output, format='JPEG', quality=85)
         output.seek(0)
-        
+
         return output
     except Exception as e:
         print(f"Image resize error: {e}")
         return image_stream
 
-def _style_title_placeholder(ph, theme: Dict, font_size: int = 32, color: RGBColor = None):
+def _style_title_placeholder(ph, theme: dict, font_size: int = 32, color: RGBColor = None):
     """Apply consistent title styling to a placeholder."""
     tf = ph.text_frame
     tf.word_wrap = True
@@ -363,7 +361,7 @@ def _style_title_placeholder(ph, theme: Dict, font_size: int = 32, color: RGBCol
         para.font.color.rgb = color or theme["title_color"]
 
 
-def _apply_basic_slide_layout(slide, theme: Dict):
+def _apply_basic_slide_layout(slide, theme: dict):
     """Apply a simple, clean base layout to a slide."""
     slide.background.fill.solid()
     slide.background.fill.fore_color.rgb = theme["bg_color"]
@@ -385,7 +383,7 @@ def _apply_basic_slide_layout(slide, theme: Dict):
     footer_line.line.color.rgb = theme["subtitle_color"]
 
 
-def _add_bullet_to_body(tf, text: str, theme: Dict, font_size: int = 18, bold: bool = False,
+def _add_bullet_to_body(tf, text: str, theme: dict, font_size: int = 18, bold: bool = False,
                         color: RGBColor = None, prefix: str = ""):
     """Add a single bullet paragraph to a text frame."""
     para = tf.add_paragraph()
@@ -398,7 +396,7 @@ def _add_bullet_to_body(tf, text: str, theme: Dict, font_size: int = 18, bold: b
     para.space_after = Pt(2)
     para.line_spacing = 1.15
 
-def create_title_slide(prs: Presentation, slide_data: Dict, theme: Dict, include_images: bool = True):
+def create_title_slide(prs: Presentation, slide_data: dict, theme: dict, include_images: bool = True):
     """Create a title slide using layout 0 (Title Slide) placeholders."""
     # Layout 0 = Title Slide: placeholder[0]=title, placeholder[1]=subtitle
     layout = prs.slide_layouts[0]
@@ -430,7 +428,7 @@ def create_title_slide(prs: Presentation, slide_data: Dict, theme: Dict, include
         para.font.italic = True
         para.alignment = PP_ALIGN.CENTER
 
-def create_content_slide(prs: Presentation, slide_data: Dict, theme: Dict, include_images: bool = True):
+def create_content_slide(prs: Presentation, slide_data: dict, theme: dict, include_images: bool = True):
     """Create a content slide using layout 1 (Title + Content) placeholders.
 
         Content priority order written into the body placeholder:
@@ -577,7 +575,7 @@ def create_content_slide(prs: Presentation, slide_data: Dict, theme: Dict, inclu
         except Exception as e:
             print(f"Table error: {e}")
 
-def create_summary_slide(prs: Presentation, slide_data: Dict, theme: Dict, include_images: bool = True):
+def create_summary_slide(prs: Presentation, slide_data: dict, theme: dict, include_images: bool = True):
     """Create the summary/conclusion slide using layout 1 (Title + Content)."""
     layout = prs.slide_layouts[1]
     slide = prs.slides.add_slide(layout)
@@ -646,27 +644,27 @@ def generate_presentation(
     include_images: bool = True
 ) -> str:
     """Generate complete presentation and return file path."""
-    
+
     # Analyze content and create slide structure
     structure = analyze_content_for_slides(normalized_text, slide_count)
-    
+
     # Get theme
     theme_config = THEMES.get(theme, THEMES["modern"])
-    
+
     # Create presentation with proper settings
     prs = Presentation()
     prs.slide_width = Inches(10)
     prs.slide_height = Inches(7.5)
-    
+
     # Verify we have slides to create
     if not structure.get("slides"):
         raise ValueError("No slides generated from content")
-    
+
     # Create slides based on structure
     for slide_data in structure["slides"]:
         try:
             slide_type = slide_data.get("slide_type", "content")
-            
+
             if slide_type == "title":
                 create_title_slide(prs, slide_data, theme_config, include_images)
             elif slide_type == "summary":
@@ -677,19 +675,19 @@ def generate_presentation(
             print(f"Error creating slide {slide_data.get('heading', 'Unknown')}: {e}")
             # Continue with other slides even if one fails
             continue
-    
+
     # Verify at least one slide was created
     if len(prs.slides) == 0:
         raise ValueError("Failed to create any slides")
-    
+
     # Save presentation
     temp_dir = Path("temp")
     temp_dir.mkdir(exist_ok=True)
-    
+
     # Generate unique filename
     filename = f"presentation_{int(time.time())}.pptx"
     filepath = temp_dir / filename
-    
+
     # Save with error handling
     try:
         prs.save(str(filepath))

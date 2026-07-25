@@ -1,49 +1,62 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form, Request, BackgroundTasks
-from fastapi.responses import StreamingResponse
-from typing import Optional
-from pathlib import Path
-from bson import ObjectId
-import shutil
-import json
 import asyncio
+import json
+import shutil
+from pathlib import Path
+
 from app.auth.dependencies import get_current_user
 from app.database.connection import get_database
 from app.models.content import (
     ContentCreate,
     GeneratedOutputCreate,
     create_content,
-    get_content_by_id,
-    get_user_content,
     create_generated_output,
+    get_content_by_id,
     get_generated_outputs,
+    get_or_create_chatbot_output,
+    get_user_content,
     update_generated_output,
-    get_or_create_chatbot_output
 )
 from app.models.job import (
     JobCreate,
     create_job,
     get_job_by_id,
 )
-from app.services.content_processor import process_content, process_content_with_progress
-from app.services.chunker import get_chunks_for_feature
-from app.services.summary import generate_summary
+from app.models.quiz_attempt import (
+    QuizAttemptCreate,
+    create_quiz_attempt,
+)
+from app.services.chatbot import chat_with_content as chatbot_service
+from app.services.content_metadata import build_content_chunk_data, build_content_title
+from app.services.content_processor import (
+    process_content,
+    process_content_with_progress,
+)
 from app.services.flashcards import generate_flashcards as create_flashcards
+from app.services.ppt import generate_presentation
 from app.services.quiz import generate_quiz as create_quiz
 from app.services.quiz_evaluator import evaluate_quiz
-from app.services.chatbot import chat_with_content as chatbot_service
-from app.services.ppt import generate_presentation
-from app.models.quiz_attempt import QuizEvaluationRequest, QuizAttemptCreate, create_quiz_attempt
-from app.services.content_metadata import build_content_chunk_data, build_content_title
-
+from app.services.summary import generate_summary
+from bson import ObjectId
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
+from fastapi.responses import StreamingResponse
 
 
 async def _process_async_upload(
     job_id: str,
     user_id: str,
-    file: Optional[UploadFile] = None,
-    youtube_url: Optional[str] = None,
-    text: Optional[str] = None,
-    temp_path: Optional[str] = None,
+    file: UploadFile | None = None,
+    youtube_url: str | None = None,
+    text: str | None = None,
+    temp_path: str | None = None,
 ) -> None:
     from app.models.job import (
         STATUS_COMPLETE,
@@ -96,7 +109,7 @@ async def _process_async_upload(
             job_id,
             STATUS_FAILED,
             0,
-            f"Processing failed: {str(exc)}",
+            f"Processing failed: {exc!s}",
             error_message=str(exc),
         )
     finally:
@@ -124,9 +137,9 @@ router = APIRouter(prefix="/content", tags=["Content"])
 async def upload_content_async(
     background_tasks: BackgroundTasks,
     current_user: dict = Depends(get_current_user),
-    file: Optional[UploadFile] = File(None),
-    youtube_url: Optional[str] = Form(None),
-    text: Optional[str] = Form(None)
+    file: UploadFile | None = File(None),
+    youtube_url: str | None = Form(None),
+    text: str | None = Form(None)
 ):
     input_count = sum([file is not None, youtube_url is not None, text is not None])
     if input_count == 0:
@@ -199,13 +212,13 @@ async def get_job_status(job_id: str, current_user: dict = Depends(get_current_u
 @router.post("/upload")
 async def upload_content(
     current_user: dict = Depends(get_current_user),
-    file: Optional[UploadFile] = File(None),
-    youtube_url: Optional[str] = Form(None),
-    text: Optional[str] = Form(None)
+    file: UploadFile | None = File(None),
+    youtube_url: str | None = Form(None),
+    text: str | None = Form(None)
 ):
     try:
         input_type, normalized_text = await process_content(file, youtube_url, text)
-        
+
         # Generate meaningful title
         title = build_content_title(
             file_name=file.filename if file and file.filename else None,
@@ -224,9 +237,9 @@ async def upload_content(
             chunks=chunks,
             chunk_metadata=chunk_metadata
         )
-        
+
         content_id = create_content(content_data)
-        
+
         return {
             "content_id": content_id,
             "normalized_text": normalized_text
@@ -242,22 +255,23 @@ async def upload_content_stream(
     current_user: dict = Depends(get_current_user)
 ):
     """Upload content with real-time progress updates via Server-Sent Events"""
-    
+
     # Parse multipart form data BEFORE creating the generator
     try:
         form = await request.form()
         file = form.get('file')
         youtube_url = form.get('youtube_url')
         text = form.get('text')
-    except Exception as e:
+    except Exception as exc:
+        err_msg = str(exc)
         async def error_gen():
             error_data = json.dumps({
                 "stage": "error",
-                "message": f"Request parsing failed: {str(e)}",
+                "message": f"Request parsing failed: {err_msg}",
                 "percentage": 0
             })
             yield f"data: {error_data}\n\n"
-        
+
         return StreamingResponse(
             error_gen(),
             media_type="text/event-stream",
@@ -267,10 +281,10 @@ async def upload_content_stream(
                 "X-Accel-Buffering": "no"
             }
         )
-    
+
     # Use asyncio.Queue for real-time event streaming
     progress_queue = asyncio.Queue()
-    
+
     async def progress_callback(stage: str, message: str, percentage: int):
         """Callback that puts events in queue immediately for real-time streaming"""
         await progress_queue.put({
@@ -278,14 +292,14 @@ async def upload_content_stream(
             "message": message,
             "percentage": percentage
         })
-    
+
     async def process_and_signal():
         """Process content and signal completion/error via queue"""
         try:
             input_type, normalized_text = await process_content_with_progress(
                 file, youtube_url, text, progress_callback
             )
-            
+
             # Generate title
             title = build_content_title(
                 file_name=file.filename if file and hasattr(file, "filename") and file.filename else None,
@@ -295,7 +309,7 @@ async def upload_content_stream(
             )
 
             chunks, chunk_metadata = build_content_chunk_data(normalized_text)
-            
+
             # Save to database
             content_data = ContentCreate(
                 user_id=current_user["user_id"],
@@ -305,9 +319,9 @@ async def upload_content_stream(
                 chunks=chunks,
                 chunk_metadata=chunk_metadata
             )
-            
+
             content_id = create_content(content_data)
-            
+
             # Signal completion
             await progress_queue.put({
                 "stage": "complete",
@@ -316,37 +330,37 @@ async def upload_content_stream(
                 "content_id": content_id,
                 "input_type": input_type
             })
-            
+
         except Exception as e:
             await progress_queue.put({
                 "stage": "error",
                 "message": str(e),
                 "percentage": 0
             })
-    
+
     async def generate_progress():
         """Generator that yields SSE events in real-time from queue"""
         # Send initial event
         yield f"data: {json.dumps({'stage': 'start', 'message': 'Starting...', 'percentage': 0})}\n\n"
-        
+
         # Start processing task
         task = asyncio.create_task(process_and_signal())
-        
+
         try:
             while True:
                 try:
                     # Wait for next event with timeout
                     event = await asyncio.wait_for(progress_queue.get(), timeout=60.0)
                     yield f"data: {json.dumps(event)}\n\n"
-                    
+
                     # Check if processing is done
                     if event.get("stage") in ("complete", "error"):
                         break
-                        
+
                 except asyncio.TimeoutError:
                     # Send keepalive
                     yield f"data: {json.dumps({'stage': 'processing', 'message': 'Still processing...', 'percentage': -1})}\n\n"
-                    
+
                     # Check if task is done but we missed the event
                     if task.done():
                         break
@@ -357,7 +371,7 @@ async def upload_content_stream(
                     await task
                 except asyncio.CancelledError:
                     pass
-    
+
     return StreamingResponse(
         generate_progress(),
         media_type="text/event-stream",
@@ -376,20 +390,20 @@ async def generate_content_summary(
 ):
     try:
         content = get_content_by_id(content_id)
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         summary_prompts = {
             "short": "Provide a brief summary in 3-5 sentences.",
             "detailed": "Provide a comprehensive and detailed summary.",
             "exam": "Provide a summary focused on key exam topics and concepts.",
             "revision": "Provide a summary optimized for quick revision."
         }
-        
+
         prompt_suffix = summary_prompts.get(summary_type, summary_prompts["detailed"])
         stored_chunks = content.get('chunks') or []
         summary = generate_summary(
@@ -397,7 +411,7 @@ async def generate_content_summary(
             stored_chunks=stored_chunks if stored_chunks else None,
             normalized_text=content['normalized_text'] if not stored_chunks else None,
         )
-        
+
         output_data = GeneratedOutputCreate(
             user_id=current_user["user_id"],
             content_id=content_id,
@@ -405,9 +419,9 @@ async def generate_content_summary(
             options={"summary_type": summary_type},
             output={"summary": summary}
         )
-        
+
         output_id = create_generated_output(output_data)
-        
+
         return {
             "content_id": content_id,
             "summary": summary,
@@ -428,13 +442,13 @@ async def generate_flashcards_endpoint(
 ):
     try:
         content = get_content_by_id(content_id)
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         stored_chunks = content.get('chunks') or []
         flashcards = create_flashcards(
             flashcard_type=flashcard_type,
@@ -442,7 +456,7 @@ async def generate_flashcards_endpoint(
             stored_chunks=stored_chunks if stored_chunks else None,
             normalized_text=content['normalized_text'] if not stored_chunks else None,
         )
-        
+
         output_data = GeneratedOutputCreate(
             user_id=current_user["user_id"],
             content_id=content_id,
@@ -450,9 +464,9 @@ async def generate_flashcards_endpoint(
             options={"flashcard_type": flashcard_type, "number_of_cards": number_of_cards},
             output=flashcards
         )
-        
+
         output_id = create_generated_output(output_data)
-        
+
         return {
             "content_id": content_id,
             "flashcards": flashcards,
@@ -473,13 +487,13 @@ async def generate_quiz_endpoint(
 ):
     try:
         content = get_content_by_id(content_id)
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         stored_chunks = content.get('chunks') or []
         quiz_data = create_quiz(
             max_questions=number_of_questions,
@@ -488,7 +502,7 @@ async def generate_quiz_endpoint(
             stored_chunks=stored_chunks if stored_chunks else None,
             normalized_text=content['normalized_text'] if not stored_chunks else None,
         )
-        
+
         output_data = GeneratedOutputCreate(
             user_id=current_user["user_id"],
             content_id=content_id,
@@ -500,9 +514,9 @@ async def generate_quiz_endpoint(
             },
             output=quiz_data
         )
-        
+
         output_id = create_generated_output(output_data)
-        
+
         return {
             "content_id": content_id,
             "quiz": quiz_data,
@@ -523,15 +537,15 @@ async def chat_with_content_endpoint(
 ):
     try:
         import json
-        
+
         content = get_content_by_id(content_id)
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # Parse chat history if provided
         history = []
         frontend_messages = []
@@ -555,10 +569,10 @@ async def chat_with_content_endpoint(
                             "sender": msg.get('sender'),
                             "text": msg.get('text', '')
                         })
-            except:
+            except Exception:
                 history = []
                 frontend_messages = []
-        
+
         # Use stored chunks if available (new content), fall back to raw text for old content
         stored_chunks = content.get('chunks') or []
         answer = chatbot_service(
@@ -567,40 +581,40 @@ async def chat_with_content_endpoint(
             stored_chunks=stored_chunks if stored_chunks else None,
             normalized_text=content['normalized_text'] if not stored_chunks else None,
         )
-        
+
         # Get or create chatbot conversation for this content
         output_id = get_or_create_chatbot_output(content_id, current_user["user_id"])
-        
+
         # CRITICAL: Retrieve EXISTING conversation from database first
         db = get_database()
         generated_outputs = db.generated_outputs
         existing_output = generated_outputs.find_one({"_id": ObjectId(output_id)})
-        
+
         # Start with existing conversation from database
         full_conversation = []
         if existing_output and existing_output.get('output') and existing_output['output'].get('conversation'):
             # Filter out any empty or invalid messages from existing conversation
             existing_conv = existing_output['output']['conversation']
             full_conversation = [
-                msg for msg in existing_conv 
+                msg for msg in existing_conv
                 if msg.get('sender') and msg.get('text') and msg.get('text').strip()
             ]
-        
+
         # Add the new question and answer (with validation)
         if question and question.strip():
             full_conversation.append({"sender": "user", "text": question.strip()})
         if answer and answer.strip():
             full_conversation.append({"sender": "ai", "text": answer.strip()})
-        
+
         # Log the conversation being saved (for debugging)
         print(f"[CHATBOT] Saving conversation with {len(full_conversation)} messages for content {content_id}")
-        
+
         # Update the existing conversation with the merged history
         update_generated_output(output_id, {
             "output": {"conversation": full_conversation},
             "options": {"message_count": len(full_conversation)}
         })
-        
+
         return {
             "content_id": content_id,
             "question": question,
@@ -616,7 +630,7 @@ async def chat_with_content_endpoint(
 async def get_content_history(current_user: dict = Depends(get_current_user)):
     try:
         contents = get_user_content(current_user["user_id"])
-        
+
         history = []
         for c in contents:
             history.append({
@@ -626,7 +640,7 @@ async def get_content_history(current_user: dict = Depends(get_current_user)):
                 "title": c.get("title") or f"{c['input_type'].capitalize()} Content",
                 "preview": c["normalized_text"][:200] + "..." if len(c["normalized_text"]) > 200 else c["normalized_text"]
             })
-        
+
         return {"history": history}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -639,13 +653,13 @@ async def get_content_source(
     """Get the full source content including normalized text (transcript/content)"""
     try:
         content = get_content_by_id(content_id)
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         return {
             "content_id": str(content["_id"]),
             "input_type": content["input_type"],
@@ -666,15 +680,15 @@ async def get_content_outputs(
 ):
     try:
         content = get_content_by_id(content_id)
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         outputs = get_generated_outputs(content_id, current_user["user_id"])
-        
+
         output_list = []
         for o in outputs:
             output_list.append({
@@ -685,7 +699,7 @@ async def get_content_outputs(
                 "score": o.get("score"),  # Include quiz score if available
                 "created_at": o["created_at"]
             })
-        
+
         return {"content_id": content_id, "outputs": output_list}
     except HTTPException:
         raise
@@ -702,25 +716,25 @@ async def evaluate_quiz_attempt(
 ):
     try:
         import json
-        
+
         if mode not in ["practice", "test"]:
             raise HTTPException(status_code=400, detail="Mode must be 'practice' or 'test'")
-        
+
         try:
             user_responses = json.loads(responses)
-        except:
+        except Exception:
             raise HTTPException(status_code=400, detail="Responses must be valid JSON array")
-        
+
         db = get_database()
         quiz_output = db.generated_outputs.find_one({"_id": ObjectId(quiz_id)})
         if not quiz_output:
             raise HTTPException(status_code=404, detail="Quiz not found")
-        
+
         if quiz_output["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         quiz_content = quiz_output.get("output", {})
-        
+
         evaluation_result = evaluate_quiz(
             quiz_content=quiz_content,
             user_responses=user_responses,
@@ -728,7 +742,7 @@ async def evaluate_quiz_attempt(
             user_id=current_user["user_id"],
             quiz_id=quiz_id
         )
-        
+
         attempt_data = QuizAttemptCreate(
             user_id=current_user["user_id"],
             quiz_id=quiz_id,
@@ -738,12 +752,12 @@ async def evaluate_quiz_attempt(
             percentage=evaluation_result["percentage"],
             mode=mode
         )
-        
+
         attempt_id = create_quiz_attempt(attempt_data)
         evaluation_result["attempt_id"] = attempt_id
-        
+
         return evaluation_result
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -757,15 +771,15 @@ async def get_output_by_id(
     try:
         db = get_database()
         generated_outputs = db.generated_outputs
-        
+
         output = generated_outputs.find_one({"_id": ObjectId(output_id)})
-        
+
         if not output:
             raise HTTPException(status_code=404, detail="Output not found")
-        
+
         if output["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         return {
             "output_id": str(output["_id"]),
             "content_id": output["content_id"],
@@ -793,18 +807,18 @@ async def update_output_score(
     try:
         db = get_database()
         generated_outputs = db.generated_outputs
-        
+
         output = generated_outputs.find_one({"_id": ObjectId(output_id)})
-        
+
         if not output:
             raise HTTPException(status_code=404, detail="Output not found")
-        
+
         if output["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # Prepare update data
         update_data = {"score": {"correct": score, "total": total, "percentage": percentage}}
-        
+
         # If user_answers provided (test mode), parse and store them
         if user_answers:
             import json
@@ -813,13 +827,13 @@ async def update_output_score(
                 update_data["user_answers"] = answers_dict
             except json.JSONDecodeError:
                 pass  # Skip if invalid JSON
-        
+
         # Update score and user answers
         generated_outputs.update_one(
             {"_id": ObjectId(output_id)},
             {"$set": update_data}
         )
-        
+
         return {"success": True, "output_id": output_id}
     except HTTPException:
         raise
@@ -834,18 +848,18 @@ async def delete_output(
     try:
         db = get_database()
         generated_outputs = db.generated_outputs
-        
+
         output = generated_outputs.find_one({"_id": ObjectId(output_id)})
-        
+
         if not output:
             raise HTTPException(status_code=404, detail="Output not found")
-        
+
         if output["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # Delete the output
         generated_outputs.delete_one({"_id": ObjectId(output_id)})
-        
+
         return {"success": True, "message": "Output deleted successfully"}
     except HTTPException:
         raise
@@ -862,21 +876,21 @@ async def generate_ppt_endpoint(
 ):
     try:
         from app.services.ppt import analyze_content_for_slides
-        
+
         content = get_content_by_id(content_id)
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # First, analyze content and get structure for preview
         slide_structure = analyze_content_for_slides(
             normalized_text=content['normalized_text'],
             slide_count=slide_count
         )
-        
+
         # Generate presentation file
         file_path = generate_presentation(
             normalized_text=content['normalized_text'],
@@ -884,7 +898,7 @@ async def generate_ppt_endpoint(
             theme=theme,
             include_images=include_images
         )
-        
+
         # Save output metadata with slide structure
         output_data = GeneratedOutputCreate(
             user_id=current_user["user_id"],
@@ -900,9 +914,9 @@ async def generate_ppt_endpoint(
                 "slide_structure": slide_structure
             }
         )
-        
+
         output_id = create_generated_output(output_data)
-        
+
         # Return preview data with download option
         return {
             "content_id": content_id,
@@ -916,7 +930,7 @@ async def generate_ppt_endpoint(
                 "include_images": include_images
             }
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -929,8 +943,9 @@ async def download_ppt(
 ):
     try:
         import os
+
         from fastapi.responses import FileResponse
-        
+
         db = get_database()
         generated_outputs = db.generated_outputs
 
@@ -972,7 +987,7 @@ async def download_ppt(
             filename=f"presentation_{output['content_id']}.pptx",
             media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation"
         )
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -987,28 +1002,28 @@ async def rename_content(
     try:
         db = get_database()
         content_collection = db.content
-        
+
         # Parse JSON body
         body = await request.json()
         title = body.get('title', '').strip()
-        
+
         if not title:
             raise HTTPException(status_code=400, detail="Title cannot be empty")
-        
+
         content = content_collection.find_one({"_id": ObjectId(content_id)})
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # Update the title
         content_collection.update_one(
             {"_id": ObjectId(content_id)},
             {"$set": {"title": title}}
         )
-        
+
         return {"success": True, "message": "Content renamed successfully", "title": title}
     except HTTPException:
         raise
@@ -1025,24 +1040,24 @@ async def delete_content(
         content_collection = db.content
         generated_outputs = db.generated_outputs
         quiz_attempts = db.quiz_attempts
-        
+
         content = content_collection.find_one({"_id": ObjectId(content_id)})
-        
+
         if not content:
             raise HTTPException(status_code=404, detail="Content not found")
-        
+
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         # Delete all related outputs
         generated_outputs.delete_many({"content_id": content_id})
-        
+
         # Delete all related quiz attempts
         quiz_attempts.delete_many({"content_id": content_id})
-        
+
         # Delete the content itself
         content_collection.delete_one({"_id": ObjectId(content_id)})
-        
+
         return {"success": True, "message": "Content and all related data deleted successfully"}
     except HTTPException:
         raise

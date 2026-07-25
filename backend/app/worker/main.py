@@ -31,7 +31,6 @@ import signal
 import sys
 
 import boto3
-
 from app.models.job import increment_retry
 
 # ─── LOGGING ─────────────────────────────────────────────────────────────────
@@ -131,7 +130,7 @@ async def run_worker():
                 sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
                 logger.info(f"[JOB {job_id}] Message deleted from queue.")
 
-            except Exception as exc:
+            except Exception:
                 # Increment retry count in MongoDB
                 retry_count = increment_retry(job_id) if job_id else receive_count
 

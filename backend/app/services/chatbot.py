@@ -5,21 +5,20 @@ Supports pre-stored chunks (MongoDB content['chunks']) and raw normalized_text f
 """
 
 import os
-from typing import List, Optional
-from groq import Groq
-from dotenv import load_dotenv
 
 from app.services.chunker import get_chunks_for_feature, retrieve_top_k
+from dotenv import load_dotenv
+from groq import Groq
 
 load_dotenv()
 
 
 def chat_with_content(
-    text_input: Optional[str] = None,
+    text_input: str | None = None,
     question: str = "",
-    chat_history: Optional[List[dict]] = None,
-    stored_chunks: Optional[List[str]] = None,
-    normalized_text: Optional[str] = None,
+    chat_history: list[dict] | None = None,
+    stored_chunks: list[str] | None = None,
+    normalized_text: str | None = None,
 ) -> str:
     """
     Answer user questions using RAG over stored_chunks or raw text.
@@ -76,4 +75,4 @@ Be concise, accurate, and cite specific details from the context when possible."
 
     except Exception as e:
         print(f"[CHATBOT] Error: {e}")
-        return f"Error: {str(e)}"
+        return f"Error: {e!s}"

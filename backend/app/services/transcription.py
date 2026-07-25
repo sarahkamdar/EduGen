@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Transcription via Groq's Whisper API (cloud, free tier, no GPU required)

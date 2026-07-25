@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.routes.content import router as content_router
+
 from app.auth.routes import router as auth_router
 from app.database.connection import get_database
+from app.routes.content import router as content_router
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager

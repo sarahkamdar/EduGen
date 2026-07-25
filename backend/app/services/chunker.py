@@ -15,12 +15,10 @@ What the previous design did wrong:
 """
 
 import re
-from typing import List, Optional
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
 
 # ─── CANONICAL STORAGE PARAMETERS ────────────────────────────────────────────
 # Stored once per content document. Never changed without a deliberate decision.
@@ -39,7 +37,7 @@ TOP_K_CONFIG: dict[str, int] = {
 }
 
 # Semantic hint queries for TF-IDF retrieval. chatbot uses the real user question.
-RETRIEVAL_QUERIES: dict[str, Optional[str]] = {
+RETRIEVAL_QUERIES: dict[str, str | None] = {
     "chatbot":    None,
     "quiz":       "key concepts definitions facts formulas important topics explained",
     "flashcards": "definition meaning terminology explained is called refers to means",
@@ -50,14 +48,14 @@ RETRIEVAL_QUERIES: dict[str, Optional[str]] = {
 
 # ─── CHUNKING — called ONCE at upload, result stored in MongoDB ───────────────
 
-def compute_chunks(text: str) -> List[str]:
+def compute_chunks(text: str) -> list[str]:
     """
     Split text into canonical overlapping chunks.
     Called once at upload. Stored in content['chunks'] in MongoDB.
     Never called again for the same content.
     """
     sentences = re.split(r'(?<=[.!?])\s+', text)
-    chunks: List[str] = []
+    chunks: list[str] = []
     current = ""
 
     for sentence in sentences:
@@ -73,7 +71,7 @@ def compute_chunks(text: str) -> List[str]:
     return chunks if chunks else [text[:CHUNK_SIZE]]
 
 
-def get_chunk_metadata(chunks: List[str], original_text: str) -> dict:
+def get_chunk_metadata(chunks: list[str], original_text: str) -> dict:
     """Metadata stored alongside chunks for debugging and monitoring."""
     return {
         "count":       len(chunks),
@@ -85,7 +83,7 @@ def get_chunk_metadata(chunks: List[str], original_text: str) -> dict:
 
 # ─── RETRIEVAL — called at runtime for every feature request ─────────────────
 
-def retrieve_top_k(chunks: List[str], query: str, top_k: int) -> List[str]:
+def retrieve_top_k(chunks: list[str], query: str, top_k: int) -> list[str]:
     """
     Retrieve the top_k most relevant pre-stored chunks using TF-IDF cosine similarity.
 
@@ -120,10 +118,10 @@ def retrieve_top_k(chunks: List[str], query: str, top_k: int) -> List[str]:
 # ─── UNIFIED ENTRY POINT ─────────────────────────────────────────────────────
 
 def get_chunks_for_feature(
-    stored_chunks: List[str],
+    stored_chunks: list[str],
     feature: str,
-    user_query: Optional[str] = None,
-) -> List[str]:
+    user_query: str | None = None,
+) -> list[str]:
     """
     Single entry point for all features to get relevant chunks.
 

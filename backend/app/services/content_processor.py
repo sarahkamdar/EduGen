@@ -1,12 +1,13 @@
+import asyncio
 import os
 import re
-import asyncio
-from pathlib import Path
-from typing import Optional, Callable, Awaitable
+from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import UploadFile, HTTPException
+from pathlib import Path
+
 from app.services.audio_extractor import extract_audio
 from app.services.transcription import transcribe_audio
+from fastapi import HTTPException, UploadFile
 
 # Thread pool for blocking operations
 _executor = ThreadPoolExecutor(max_workers=4)
@@ -16,39 +17,39 @@ async def run_blocking(func, *args):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_executor, func, *args)
 
-async def normalize_video(file: UploadFile, progress_callback: Optional[Callable[[str, str, int], Awaitable[None]]] = None) -> str:
+async def normalize_video(file: UploadFile, progress_callback: Callable[[str, str, int], Awaitable[None]] | None = None) -> str:
     temp_dir = Path("temp")
     temp_dir.mkdir(exist_ok=True)
-    
+
     if progress_callback:
         await progress_callback("upload", "Saving video file...", 10)
-    
+
     file_path = temp_dir / file.filename
     content = await file.read()
-    
+
     def save_file():
         with open(file_path, "wb") as f:
             f.write(content)
     await run_blocking(save_file)
-    
+
     if progress_callback:
         await progress_callback("extract", "Extracting audio from video...", 30)
-    
+
     audio_path = await run_blocking(extract_audio, str(file_path))
     await run_blocking(os.remove, file_path)
-    
+
     if progress_callback:
         await progress_callback("transcribe", "Transcribing audio to text...", 60)
-    
+
     transcript = await run_blocking(transcribe_audio, audio_path)
     await run_blocking(os.remove, audio_path)
-    
+
     if progress_callback:
         await progress_callback("finalize", "Finalizing content...", 90)
-    
+
     return transcript
 
-def _extract_video_id(youtube_url: str) -> Optional[str]:
+def _extract_video_id(youtube_url: str) -> str | None:
     """Extract YouTube video ID from various URL formats."""
     patterns = [
         r'(?:v=|youtu\.be/|embed/|shorts/)([a-zA-Z0-9_-]{11})',
@@ -59,7 +60,7 @@ def _extract_video_id(youtube_url: str) -> Optional[str]:
             return match.group(1)
     return None
 
-async def normalize_youtube(youtube_url: str, progress_callback: Optional[Callable[[str, str, int], Awaitable[None]]] = None) -> str:
+async def normalize_youtube(youtube_url: str, progress_callback: Callable[[str, str, int], Awaitable[None]] | None = None) -> str:
     # --- Fast path: fetch YouTube captions directly ---
     try:
         from youtube_transcript_api import YouTubeTranscriptApi
@@ -89,7 +90,6 @@ async def normalize_youtube(youtube_url: str, progress_callback: Optional[Callab
     except Exception as caption_error:
         # Caption fetch failed — fall back to audio download + Whisper
         print(f"[YouTube] Caption fetch failed ({caption_error}), falling back to audio download...")
-        pass
 
     # --- Slow path fallback: download audio and transcribe with Whisper ---
     try:
@@ -143,29 +143,29 @@ async def normalize_youtube(youtube_url: str, progress_callback: Optional[Callab
 
         return transcript
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"YouTube processing failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"YouTube processing failed: {e!s}")
 
-async def normalize_pdf(file: UploadFile, progress_callback: Optional[Callable[[str, str, int], Awaitable[None]]] = None) -> str:
+async def normalize_pdf(file: UploadFile, progress_callback: Callable[[str, str, int], Awaitable[None]] | None = None) -> str:
     try:
         from pypdf import PdfReader
-        
+
         temp_dir = Path("temp")
         temp_dir.mkdir(exist_ok=True)
-        
+
         if progress_callback:
             await progress_callback("upload", "Saving PDF file...", 10)
-        
+
         file_path = temp_dir / file.filename
         content = await file.read()
-        
+
         def save_file():
             with open(file_path, "wb") as f:
                 f.write(content)
         await run_blocking(save_file)
-        
+
         if progress_callback:
             await progress_callback("extract", "Extracting text from PDF...", 40)
-        
+
         def extract_pdf_text():
             text = ""
             pdf_reader = PdfReader(file_path)
@@ -174,46 +174,46 @@ async def normalize_pdf(file: UploadFile, progress_callback: Optional[Callable[[
                 if extracted:
                     text += extracted + "\n"
             return text
-        
+
         text = await run_blocking(extract_pdf_text)
-        
+
         # Cleanup
         if os.path.exists(file_path):
             await run_blocking(os.remove, file_path)
-        
+
         if not text.strip():
             raise HTTPException(status_code=400, detail="No readable text found in PDF. It may be scanned or image-based.")
-        
+
         if progress_callback:
             await progress_callback("finalize", "Finalizing content...", 90)
-        
+
         return clean_text(text)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"PDF processing failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"PDF processing failed: {e!s}")
 
-async def normalize_word(file: UploadFile, progress_callback: Optional[Callable[[str, str, int], Awaitable[None]]] = None) -> str:
+async def normalize_word(file: UploadFile, progress_callback: Callable[[str, str, int], Awaitable[None]] | None = None) -> str:
     try:
         from docx import Document
-        
+
         temp_dir = Path("temp")
         temp_dir.mkdir(exist_ok=True)
-        
+
         if progress_callback:
             await progress_callback("upload", "Saving Word document...", 10)
-        
+
         file_path = temp_dir / file.filename
         content = await file.read()
-        
+
         def save_file():
             with open(file_path, "wb") as f:
                 f.write(content)
         await run_blocking(save_file)
-        
+
         if progress_callback:
             await progress_callback("extract", "Extracting text from document...", 40)
-        
+
         def extract_word_text():
             text = ""
             doc = Document(file_path)
@@ -227,24 +227,24 @@ async def normalize_word(file: UploadFile, progress_callback: Optional[Callable[
                             text += cell.text + " "
                     text += "\n"
             return text
-        
+
         text = await run_blocking(extract_word_text)
-        
+
         # Cleanup
         if os.path.exists(file_path):
             await run_blocking(os.remove, file_path)
-        
+
         if not text.strip():
             raise HTTPException(status_code=400, detail="No readable text found in Word document.")
-        
+
         if progress_callback:
             await progress_callback("finalize", "Finalizing content...", 90)
-        
+
         return clean_text(text)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Word document processing failed: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Word document processing failed: {e!s}")
 
 def normalize_text(text: str) -> str:
     return clean_text(text)
@@ -255,25 +255,25 @@ def clean_text(text: str) -> str:
     return text
 
 async def process_content(
-    file: Optional[UploadFile] = None,
-    youtube_url: Optional[str] = None,
-    text: Optional[str] = None
+    file: UploadFile | None = None,
+    youtube_url: str | None = None,
+    text: str | None = None
 ) -> tuple[str, str]:
     input_count = sum([file is not None, youtube_url is not None, text is not None])
-    
+
     if input_count == 0:
         raise HTTPException(status_code=400, detail="No input provided")
-    
+
     if input_count > 1:
         raise HTTPException(status_code=400, detail="Only one input type allowed")
-    
+
     if file:
         file_ext = Path(file.filename).suffix.lower()
-        
+
         video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
         pdf_extensions = ['.pdf']
         word_extensions = ['.docx', '.doc']
-        
+
         if file_ext in video_extensions:
             normalized_text = await normalize_video(file)
             input_type = "video"
@@ -285,43 +285,43 @@ async def process_content(
             input_type = "word"
         else:
             raise HTTPException(status_code=400, detail="Unsupported file format")
-    
+
     elif youtube_url:
         normalized_text = await normalize_youtube(youtube_url)
         input_type = "youtube"
-    
+
     elif text:
         normalized_text = normalize_text(text)
         input_type = "text"
-    
+
     return input_type, normalized_text
 
 async def process_content_with_progress(
-    file: Optional[UploadFile] = None,
-    youtube_url: Optional[str] = None,
-    text: Optional[str] = None,
-    progress_callback: Optional[Callable[[str, str, int], Awaitable[None]]] = None
+    file: UploadFile | None = None,
+    youtube_url: str | None = None,
+    text: str | None = None,
+    progress_callback: Callable[[str, str, int], Awaitable[None]] | None = None
 ) -> tuple[str, str]:
     """Process content with real-time progress updates"""
-    
+
     input_count = sum([file is not None, youtube_url is not None, text is not None])
-    
+
     if input_count == 0:
         raise HTTPException(status_code=400, detail="No input provided")
-    
+
     if input_count > 1:
         raise HTTPException(status_code=400, detail="Only one input type allowed")
-    
+
     if progress_callback:
         await progress_callback("start", "Starting content processing...", 5)
-    
+
     if file:
         file_ext = Path(file.filename).suffix.lower()
-        
+
         video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
         pdf_extensions = ['.pdf']
         word_extensions = ['.docx', '.doc']
-        
+
         if file_ext in video_extensions:
             normalized_text = await normalize_video(file, progress_callback)
             input_type = "video"
@@ -333,11 +333,11 @@ async def process_content_with_progress(
             input_type = "word"
         else:
             raise HTTPException(status_code=400, detail="Unsupported file format")
-    
+
     elif youtube_url:
         normalized_text = await normalize_youtube(youtube_url, progress_callback)
         input_type = "youtube"
-    
+
     elif text:
         if progress_callback:
             await progress_callback("upload", "Processing text input...", 30)
@@ -345,5 +345,5 @@ async def process_content_with_progress(
             await progress_callback("finalize", "Finalizing content...", 90)
         normalized_text = normalize_text(text)
         input_type = "text"
-    
+
     return input_type, normalized_text

@@ -5,20 +5,19 @@ Supports both pre-stored chunks (MongoDB content['chunks']) and raw normalized_t
 """
 
 import os
-from typing import List, Optional
-from groq import Groq
-from dotenv import load_dotenv
 
-from app.services.chunker import get_chunks_for_feature, compute_chunks
+from app.services.chunker import get_chunks_for_feature
+from dotenv import load_dotenv
+from groq import Groq
 
 load_dotenv()
 
 
 def generate_summary(
-    text: Optional[str] = None,
+    text: str | None = None,
     prompt_suffix: str = "Provide a comprehensive and detailed summary.",
-    stored_chunks: Optional[List[str]] = None,
-    normalized_text: Optional[str] = None,
+    stored_chunks: list[str] | None = None,
+    normalized_text: str | None = None,
 ) -> str:
     """
     Generate summary using Groq API (fast and free).
@@ -64,7 +63,7 @@ def generate_summary(
     )
 
     # Summarize top chunks
-    chunk_summaries: List[str] = []
+    chunk_summaries: list[str] = []
     for chunk in chunks[:4]:  # process up to 4 relevant chunks
         prompt = f"{instruction}\n\nContent:\n{chunk}"
         try:

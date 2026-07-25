@@ -4,13 +4,12 @@ quiz.py — Quiz generation service.
 Supports pre-stored chunks (MongoDB content['chunks']) and raw normalized_text fallback.
 """
 
-import os
 import json
-from typing import List, Optional
-from groq import Groq
-from dotenv import load_dotenv
+import os
 
 from app.services.chunker import get_chunks_for_feature
+from dotenv import load_dotenv
+from groq import Groq
 
 load_dotenv()
 
@@ -23,8 +22,7 @@ def clean_json_response(text: str) -> str:
         first_newline = text.find('\n')
         text = text[first_newline + 1:] if first_newline != -1 else text[3:]
 
-    if text.endswith('```'):
-        text = text[:-3]
+    text = text.removesuffix('```')
 
     text = text.strip()
 
@@ -47,12 +45,12 @@ def clean_json_response(text: str) -> str:
 
 
 def generate_quiz(
-    text_input: Optional[str] = None,
+    text_input: str | None = None,
     max_questions: int = 10,
     difficulty_level: str = "Medium",
     quiz_mode: str = "Practice",
-    stored_chunks: Optional[List[str]] = None,
-    normalized_text: Optional[str] = None,
+    stored_chunks: list[str] | None = None,
+    normalized_text: str | None = None,
 ) -> dict:
     """
     Generate MCQ quiz questions from stored_chunks or raw text.
@@ -82,7 +80,7 @@ def generate_quiz(
     chunks_to_use = min(len(chunks), 4)
     questions_per_chunk = max(2, max_questions // chunks_to_use)
 
-    all_questions: List[dict] = []
+    all_questions: list[dict] = []
 
     for i in range(chunks_to_use):
         if len(all_questions) >= max_questions:

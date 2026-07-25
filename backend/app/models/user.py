@@ -1,9 +1,10 @@
-from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
 from datetime import datetime
-from bson import ObjectId
+
 import bcrypt
 from app.database.connection import get_users_collection
+from bson import ObjectId
+from pydantic import BaseModel, EmailStr
+
 
 class UserCreate(BaseModel):
     name: str
@@ -33,29 +34,29 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-def create_user(user_data: UserCreate) -> Optional[str]:
+def create_user(user_data: UserCreate) -> str | None:
     users_collection = get_users_collection()
-    
+
     existing_user = users_collection.find_one({"email": user_data.email.lower()})
     if existing_user:
         return None
-    
+
     user_doc = {
         "name": user_data.name,
         "email": user_data.email.lower(),
         "hashed_password": hash_password(user_data.password),
         "created_at": datetime.utcnow()
     }
-    
+
     result = users_collection.insert_one(user_doc)
     return str(result.inserted_id)
 
-def get_user_by_email(email: str) -> Optional[dict]:
+def get_user_by_email(email: str) -> dict | None:
     users_collection = get_users_collection()
     user = users_collection.find_one({"email": email.lower()})
     return user
 
-def get_user_by_id(user_id: str) -> Optional[dict]:
+def get_user_by_id(user_id: str) -> dict | None:
     users_collection = get_users_collection()
     user = users_collection.find_one({"_id": ObjectId(user_id)})
     return user

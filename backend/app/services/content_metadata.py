@@ -8,9 +8,8 @@ IMPORTANT: This module must NOT import from app.routes.* to avoid circular impor
 The _get_youtube_title helper is defined here directly.
 """
 
-import requests
-from typing import Optional
 
+import requests
 from app.services.chunker import compute_chunks, get_chunk_metadata
 
 
@@ -30,9 +29,9 @@ def _get_youtube_title(youtube_url: str) -> str:
 
 
 def build_content_title(
-    file_name: Optional[str] = None,
-    youtube_url: Optional[str] = None,
-    text: Optional[str] = None,
+    file_name: str | None = None,
+    youtube_url: str | None = None,
+    text: str | None = None,
     input_type: str = "content",
 ) -> str:
     """

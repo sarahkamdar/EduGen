@@ -8,13 +8,17 @@ pipeline, and updates the job document in MongoDB throughout.
 The worker polls SQS → receives a message → calls process_job() → deletes message.
 """
 
-import os
 import logging
-from typing import Optional
+import os
 
 from app.models.content import ContentCreate, create_content
-from app.models.job import update_job_status, STATUS_PROCESSING, STATUS_COMPLETE, STATUS_FAILED
-from app.services.content_metadata import build_content_chunk_data, build_content_title
+from app.models.job import (
+    STATUS_COMPLETE,
+    STATUS_FAILED,
+    STATUS_PROCESSING,
+    update_job_status,
+)
+from app.services.content_metadata import build_content_chunk_data
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +29,11 @@ async def process_job(
     input_type: str,
     title: str,
     # Exactly one of these will be non-None:
-    s3_bucket: Optional[str] = None,
-    s3_key: Optional[str] = None,       # file uploaded to S3
-    youtube_url: Optional[str] = None,  # YouTube link
-    text_content: Optional[str] = None, # raw text (short content)
-    original_filename: Optional[str] = None,
+    s3_bucket: str | None = None,
+    s3_key: str | None = None,       # file uploaded to S3
+    youtube_url: str | None = None,  # YouTube link
+    text_content: str | None = None, # raw text (short content)
+    original_filename: str | None = None,
 ) -> str:
     """
     Process a content job and save the result to MongoDB.
@@ -42,9 +46,9 @@ async def process_job(
 
         # ── File: download from S3 to temp, then process ─────────────────────
         if s3_key and s3_bucket:
-            import asyncio
             from pathlib import Path
-            from app.utils.s3 import download_file_from_s3, delete_file_from_s3
+
+            from app.utils.s3 import delete_file_from_s3, download_file_from_s3
 
             temp_dir = Path("temp")
             temp_dir.mkdir(exist_ok=True)
@@ -55,7 +59,11 @@ async def process_job(
 
             if input_type == "video":
                 update_job_status(job_id, STATUS_PROCESSING, 30, "Extracting audio from video...")
-                from app.services.audio_extractor import extract_audio, extract_audio_chunked, MAX_WHISPER_BYTES
+                from app.services.audio_extractor import (
+                    MAX_WHISPER_BYTES,
+                    extract_audio,
+                    extract_audio_chunked,
+                )
                 audio_path = extract_audio(local_path)
 
                 update_job_status(job_id, STATUS_PROCESSING, 55, "Transcribing audio with Groq Whisper...")
@@ -159,7 +167,7 @@ async def process_job(
         logger.error(f"[JOB {job_id}] Failed: {exc}", exc_info=True)
         update_job_status(
             job_id, STATUS_FAILED, 0,
-            f"Processing failed: {str(exc)}",
+            f"Processing failed: {exc!s}",
             error_message=str(exc),
         )
         raise

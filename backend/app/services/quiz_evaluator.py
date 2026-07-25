@@ -1,23 +1,21 @@
-import json
-from typing import Dict, List
 
-def evaluate_quiz(quiz_content: dict, user_responses: List[Dict], mode: str, user_id: str, quiz_id: str) -> dict:
+def evaluate_quiz(quiz_content: dict, user_responses: list[dict], mode: str, user_id: str, quiz_id: str) -> dict:
     questions = quiz_content.get("quiz", [])
     total_questions = len(questions)
     correct_count = 0
     results = []
-    
+
     response_map = {resp["question_id"]: resp["selected_option"] for resp in user_responses}
-    
+
     for question in questions:
         qid = question["id"]
         correct_answer = question["correct_answer"]
         selected = response_map.get(qid, "")
-        
+
         is_correct = selected == correct_answer
         if is_correct:
             correct_count += 1
-        
+
         result_item = {
             "question_id": qid,
             "is_correct": is_correct,
@@ -25,13 +23,13 @@ def evaluate_quiz(quiz_content: dict, user_responses: List[Dict], mode: str, use
             "correct_answer": correct_answer,
             "explanation": question.get("explanation", "")
         }
-        
+
         results.append(result_item)
-    
+
     percentage = (correct_count / total_questions * 100) if total_questions > 0 else 0
-    
+
     completion_message = generate_completion_message(percentage, mode)
-    
+
     return {
         "quiz_id": quiz_id,
         "user_id": user_id,

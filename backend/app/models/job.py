@@ -1,11 +1,8 @@
 from datetime import datetime, timedelta
-from typing import Optional
-
-from bson import ObjectId
-from pydantic import BaseModel
 
 from app.database.connection import get_database
-
+from bson import ObjectId
+from pydantic import BaseModel
 
 STATUS_PENDING = "pending"
 STATUS_PROCESSING = "processing"
@@ -19,9 +16,9 @@ class JobCreate(BaseModel):
     status: str = STATUS_PENDING
     progress: int = 0
     progress_message: str = "Queued for processing..."
-    title: Optional[str] = None
-    content_id: Optional[str] = None
-    error_message: Optional[str] = None
+    title: str | None = None
+    content_id: str | None = None
+    error_message: str | None = None
     retry_count: int = 0
 
 
@@ -48,7 +45,7 @@ def create_job(job_data: JobCreate) -> str:
     return str(result.inserted_id)
 
 
-def get_job_by_id(job_id: str) -> Optional[dict]:
+def get_job_by_id(job_id: str) -> dict | None:
     db = get_database()
     jobs = db.jobs
 
@@ -72,8 +69,8 @@ def update_job_status(
     status: str,
     progress: int,
     progress_message: str,
-    content_id: Optional[str] = None,
-    error_message: Optional[str] = None,
+    content_id: str | None = None,
+    error_message: str | None = None,
 ) -> bool:
     updates = {
         "status": status,
