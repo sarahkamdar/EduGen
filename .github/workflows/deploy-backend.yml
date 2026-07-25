@@ -1,8 +1,5 @@
 name: Deploy Backend (API + Worker)
 
-# ─── WHEN THIS RUNS ────────────────────────────────────────────────────────────
-# Only when backend code changes are pushed to main.
-# This prevents rebuilding backend images when only frontend changes.
 on:
   workflow_dispatch:
   push:
@@ -10,20 +7,8 @@ on:
     paths:
       - "backend/**"
       - ".github/workflows/deploy-backend.yml"
-      - "buildspec-api.yml"
-      - "buildspec-worker.yml"
-
-# ─── ENVIRONMENT ───────────────────────────────────────────────────────────────
-# These come from GitHub repo Settings → Secrets and variables → Actions
-env:
-  AWS_REGION:          ${{ secrets.AWS_REGION }}
-  ECR_REGISTRY:        ${{ secrets.ECR_REGISTRY }}
-  ECS_CLUSTER:         ${{ secrets.ECS_CLUSTER }}
-  ECS_API_SERVICE:     ${{ secrets.ECS_API_SERVICE }}
-  ECS_WORKER_SERVICE:  ${{ secrets.ECS_WORKER_SERVICE }}
 
 jobs:
-  # ─── JOB 1: Lint ─────────────────────────────────────────────────────────────
   lint:
     name: Lint Backend
     runs-on: ubuntu-latest
@@ -35,22 +20,19 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      - name: Install ruff (fast Python linter)
+      - name: Install ruff
         run: pip install ruff
 
       - name: Lint
         run: ruff check backend/app --select E,W,F --ignore E501
-        # E501 = line too long — skipped because docstrings are intentionally verbose
 
-  # ─── JOB 2: Build API image (CodeBuild) ──────────────────────────────────────
-  build-api:
-    name: Build API Image (CodeBuild)
+  build-and-deploy:
+    name: Build & Push Docker Images to ECR & Deploy to ECS
     needs: lint
     runs-on: ubuntu-latest
-    outputs:
-      build-id: ${{ steps.trigger.outputs.build-id }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -59,127 +41,32 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region:            ${{ secrets.AWS_REGION }}
 
-      - name: Trigger CodeBuild for API image
-        id: trigger
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          BUILD_ID=$(aws codebuild start-build \
-            --project-name ${{ secrets.CODEBUILD_API_PROJECT }} \
-            --environment-variables-override \
-              name=IMAGE_TAG,value=${{ github.sha }},type=PLAINTEXT \
-            --query "build.id" --output text)
-          echo "build-id=$BUILD_ID" >> $GITHUB_OUTPUT
-          echo "Triggered CodeBuild build: $BUILD_ID"
+          docker build -t $ECR_REGISTRY/edugen-api:${{ github.sha }} -t $ECR_REGISTRY/edugen-api:latest ./backend
+          docker push $ECR_REGISTRY/edugen-api:${{ github.sha }}
+          docker push $ECR_REGISTRY/edugen-api:latest
 
-      - name: Wait for CodeBuild to complete
+      - name: Build and push Worker Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          BUILD_ID="${{ steps.trigger.outputs.build-id }}"
-          echo "Waiting for build $BUILD_ID..."
-          while true; do
-            STATUS=$(aws codebuild batch-get-builds --ids "$BUILD_ID" \
-              --query "builds[0].buildStatus" --output text)
-            echo "Build status: $STATUS"
-            if [ "$STATUS" = "SUCCEEDED" ]; then
-              echo "Build succeeded."
-              break
-            elif [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "FAULT" ] || [ "$STATUS" = "STOPPED" ]; then
-              echo "Build failed with status: $STATUS"
-              exit 1
-            fi
-            sleep 30
-          done
+          docker build -f ./backend/Dockerfile.worker -t $ECR_REGISTRY/edugen-worker:${{ github.sha }} -t $ECR_REGISTRY/edugen-worker:latest ./backend
+          docker push $ECR_REGISTRY/edugen-worker:${{ github.sha }}
+          docker push $ECR_REGISTRY/edugen-worker:latest
 
-  # ─── JOB 3: Build Worker image (CodeBuild, parallel with build-api) ──────────
-  build-worker:
-    name: Build Worker Image (CodeBuild)
-    needs: lint
-    runs-on: ubuntu-latest
-    outputs:
-      build-id: ${{ steps.trigger.outputs.build-id }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ secrets.AWS_REGION }}
-
-      - name: Trigger CodeBuild for Worker image
-        id: trigger
+      - name: Deploy to ECS Fargate
         run: |
-          BUILD_ID=$(aws codebuild start-build \
-            --project-name ${{ secrets.CODEBUILD_WORKER_PROJECT }} \
-            --environment-variables-override \
-              name=IMAGE_TAG,value=${{ github.sha }},type=PLAINTEXT \
-            --query "build.id" --output text)
-          echo "build-id=$BUILD_ID" >> $GITHUB_OUTPUT
-          echo "Triggered CodeBuild build: $BUILD_ID"
+          CLUSTER_NAME="${{ secrets.ECS_CLUSTER }}"
+          API_SERVICE="${{ secrets.ECS_API_SERVICE }}"
+          WORKER_SERVICE="${{ secrets.ECS_WORKER_SERVICE }}"
 
-      - name: Wait for CodeBuild to complete
-        run: |
-          BUILD_ID="${{ steps.trigger.outputs.build-id }}"
-          while true; do
-            STATUS=$(aws codebuild batch-get-builds --ids "$BUILD_ID" \
-              --query "builds[0].buildStatus" --output text)
-            echo "Build status: $STATUS"
-            if [ "$STATUS" = "SUCCEEDED" ]; then
-              echo "Worker build succeeded."
-              break
-            elif [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "FAULT" ] || [ "$STATUS" = "STOPPED" ]; then
-              echo "Worker build failed: $STATUS"
-              exit 1
-            fi
-            sleep 30
-          done
-
-  # ─── JOB 4: Deploy to ECS (depends on BOTH builds completing) ────────────────
-  deploy:
-    name: Deploy to ECS
-    needs: [build-api, build-worker]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ secrets.AWS_REGION }}
-
-      - name: Force new deployment — API service
-        run: |
-          aws ecs update-service \
-            --cluster  $ECS_CLUSTER \
-            --service  $ECS_API_SERVICE \
-            --force-new-deployment
-          echo "API service deployment triggered."
-
-      - name: Force new deployment — Worker service
-        run: |
-          aws ecs update-service \
-            --cluster  $ECS_CLUSTER \
-            --service  $ECS_WORKER_SERVICE \
-            --force-new-deployment
-          echo "Worker service deployment triggered."
-
-      - name: Wait for API service to stabilize
-        run: |
-          aws ecs wait services-stable \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_API_SERVICE
-          echo "API service is stable."
-
-      - name: Wait for Worker service to stabilize
-        run: |
-          aws ecs wait services-stable \
-            --cluster $ECS_CLUSTER \
-            --services $ECS_WORKER_SERVICE
-          echo "Worker service is stable."
-
-      - name: Deployment summary
-        run: |
-          echo "✅ Backend deployment complete."
-          echo "   Commit:  ${{ github.sha }}"
-          echo "   Cluster: $ECS_CLUSTER"
-          echo "   API:     $ECS_API_SERVICE"
-          echo "   Worker:  $ECS_WORKER_SERVICE"
+          aws ecs update-service --cluster ${CLUSTER_NAME:-edugen-cluster} --service ${API_SERVICE:-edugen-api-service} --force-new-deployment
+          aws ecs update-service --cluster ${CLUSTER_NAME:-edugen-cluster} --service ${WORKER_SERVICE:-edugen-worker-service} --force-new-deployment
+          echo "✅ Triggered ECS Fargate deployment for API and Worker services."
