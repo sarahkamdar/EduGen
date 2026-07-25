@@ -1,0 +1,49 @@
+version: 0.2
+
+# buildspec-api.yml — CodeBuild spec for edugen-api Docker image
+# Project: edugen-api-build (created by Terraform)
+# Triggered by: GitHub Actions deploy-backend.yml when IMAGE_TAG env var is set
+
+env:
+  variables:
+    ECR_REPO_NAME: edugen-api        # ECR repository name
+    DOCKERFILE:    Dockerfile        # API uses the standard Dockerfile
+  parameter-store:
+    AWS_ACCOUNT_ID: /edugen/aws-account-id  # fetched from SSM at build time
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION |
+          docker login --username AWS --password-stdin
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - ECR_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME
+      - echo "ECR URI= $ECR_URI"
+      - echo "Image tag= $IMAGE_TAG"
+
+  build:
+    commands:
+      - echo "Building API Docker image..."
+      - docker build
+          -f backend/$DOCKERFILE
+          -t $ECR_URI:$IMAGE_TAG
+          -t $ECR_URI:latest
+          ./backend
+      - echo "Build complete."
+
+  post_build:
+    commands:
+      - echo "Pushing API image to ECR..."
+      - docker push $ECR_URI:$IMAGE_TAG
+      - docker push $ECR_URI:latest
+      - echo "Push complete."
+      - printf '[{"name":"edugen-api","imageUri":"%s"}]' $ECR_URI:$IMAGE_TAG > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json   # consumed by ECS deployment action
+
+cache:
+  paths:
+    - /root/.docker/**/*     # cache docker layers between builds (speeds up re-builds)

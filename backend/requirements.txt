@@ -35,9 +35,9 @@ boto3>=1.26.0
 scikit-learn>=1.3.0
 numpy==2.3.5
 
-# Local Whisper fallback (only used if GROQ_API_KEY is missing)
-# Comment these out if you never need local transcription:
-faster-whisper==1.1.0
-torch==2.9.1
-transformers==4.57.3
-sentencepiece==0.2.1
+# Local Whisper fallback — NOT needed if you use Groq API (GROQ_API_KEY is set)
+# Uncomment ONLY if you want to run transcription 100% offline (adds ~3GB to image)
+# faster-whisper==1.1.0
+# torch==2.9.1
+# transformers==4.57.3
+# sentencepiece==0.2.1

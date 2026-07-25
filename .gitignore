@@ -52,3 +52,4 @@ Thumbs.db
 # Project documentation that shouldn't be public
 .github/
 STATE_MANAGEMENT.md
+implementation_plan.md

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Sidebar from './Sidebar'
 import InputSelector from './InputSelector'
-import ProcessingStatus from './ProcessingStatus'
+import JobStatusCard from './JobStatusCard'
 import ActionSelector from './ActionSelector'
 import ResultRenderer from './ResultRenderer'
 import OutputHistory from './OutputHistory'
@@ -102,10 +102,32 @@ function DashboardLayout() {
     loading: true
   })
   const [outputHistoryRefreshKey, setOutputHistoryRefreshKey] = useState(0)
+  const [activeJob, setActiveJob] = useState(null)
 
   // ==================== USER STATE ====================
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
+  const pollIntervalRef = useRef(null)
+  const lastUploadEntriesRef = useRef([])
+
+  const clearJobPolling = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+  }
+
+  const isJobInProgress = (job) => {
+    return !!job && !job.hidden && (job.status === 'pending' || job.status === 'processing')
+  }
+
+  const buildFormDataFromEntries = (entries) => {
+    const formData = new FormData()
+    entries.forEach(([key, value]) => {
+      formData.append(key, value)
+    })
+    return formData
+  }
 
   const getUsername = () => {
     try {
@@ -124,6 +146,7 @@ function DashboardLayout() {
   // ==================== LIFECYCLE ====================
   useEffect(() => {
     fetchHistory()
+    return () => clearJobPolling()
   }, [])
 
   useEffect(() => {
@@ -166,44 +189,76 @@ function DashboardLayout() {
     }
   }
 
+  const updateActiveJob = (updates) => {
+    setActiveJob(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        ...updates
+      }
+    })
+  }
+
+  const pollJob = async (jobId) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/content/jobs/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          handleUnauthorized()
+          return
+        }
+        throw new Error('Failed to fetch job status')
+      }
+
+      const job = await response.json()
+      updateActiveJob({
+        status: job.status,
+        progress: job.progress,
+        message: job.progress_message,
+        contentId: job.content_id,
+        title: job.title,
+        inputType: job.input_type,
+      })
+
+      setUi(prev => ({
+        ...prev,
+        isProcessing: job.status === 'pending' || job.status === 'processing'
+      }))
+
+      if (job.status === 'complete') {
+        clearJobPolling()
+        await fetchHistory()
+        setUi(prev => ({ ...prev, isProcessing: false }))
+      }
+
+      if (job.status === 'failed') {
+        clearJobPolling()
+        setUi(prev => ({ ...prev, isProcessing: false }))
+      }
+    } catch (error) {
+      console.error('Error polling job:', error)
+    }
+  }
+
   /**
    * Upload new content with real-time progress updates
    */
   const handleUpload = async (formData) => {
-    // Determine input type for progress display
-    let inputType = 'file'
-    if (formData.has('youtube_url')) {
-      inputType = 'youtube'
-    } else if (formData.has('text')) {
-      inputType = 'text'
-    } else if (formData.has('file')) {
-      const file = formData.get('file')
-      const ext = file.name?.split('.').pop()?.toLowerCase()
-      if (['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv'].includes(ext)) {
-        inputType = 'video'
-      } else if (ext === 'pdf') {
-        inputType = 'pdf'
-      } else if (['doc', 'docx'].includes(ext)) {
-        inputType = 'word'
-      }
-    }
+    if (isJobInProgress(activeJob) || ui.isProcessing) return
 
-    // Start processing
-    setUi(prev => ({ 
-      ...prev, 
-      isProcessing: true, 
-      processingStage: 'start',
-      processingMessage: 'Starting...',
-      processingPercentage: 0,
-      processingInputType: inputType
-    }))
+    lastUploadEntriesRef.current = Array.from(formData.entries())
+    setUi(prev => ({ ...prev, isProcessing: true }))
     setErrors({ uploadError: '', generateError: '' })
 
     try {
       const token = localStorage.getItem('token')
-      
-      // Use SSE streaming endpoint for all uploads (real-time progress)
-      const response = await fetch('/content/upload-stream', {
+      const response = await fetch('/content/upload-async', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -220,78 +275,48 @@ function DashboardLayout() {
           throw new Error(errorData.detail || 'Upload failed')
         }
 
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
+        const data = await response.json()
+        setActiveJob({
+          jobId: data.job_id,
+          status: data.status,
+          progress: 0,
+          message: 'Queued for processing...',
+          title: data.title,
+          inputType: data.input_type,
+          contentId: null,
+          hidden: false
+        })
 
-        let contentId = null
-        let inputType = null
+        setUi(prev => ({
+          ...prev,
+          isProcessing: true
+        }))
 
-        while (true) {
-          const { done, value } = await reader.read()
-          
-          if (done) break
-
-          const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split('\n')
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.slice(6))
-                
-                // Update UI with real-time progress
-                // Skip percentage update if -1 (keepalive signal)
-                setUi(prev => ({
-                  ...prev,
-                  processingStage: data.stage,
-                  processingMessage: data.message,
-                  processingPercentage: data.percentage >= 0 ? data.percentage : prev.processingPercentage
-                }))
-
-                // Handle completion
-                if (data.stage === 'complete') {
-                  contentId = data.content_id
-                  inputType = data.input_type
-                }
-
-                // Handle error
-                if (data.stage === 'error') {
-                  throw new Error(data.message)
-                }
-              } catch (e) {
-                if (e.message && e.message !== 'Unexpected end of JSON input') {
-                  throw e
-                }
-              }
-            }
-          }
-        }
-
-        if (contentId) {
-          // Save content data
-          setContent({
-            contentId: contentId,
-            inputType: inputType || 'unknown',
-            normalizedTextStatus: 'ready'
-          })
-
-          // Refresh history
-          await fetchHistory()
-        } else {
-          throw new Error('Upload completed but no content ID received')
-        }
+        clearJobPolling()
+        pollIntervalRef.current = setInterval(() => pollJob(data.job_id), 3000)
     } catch (error) {
+      setUi(prev => ({ ...prev, isProcessing: false }))
       setErrors(prev => ({ ...prev, uploadError: error.message }))
-    } finally {
-      setUi(prev => ({ 
-        ...prev, 
-        isProcessing: false, 
-        processingStage: 'upload',
-        processingMessage: 'Processing...',
-        processingPercentage: 0,
-        processingInputType: null
-      }))
     }
+  }
+
+  const handleDismissJob = () => {
+    setActiveJob(prev => (prev ? { ...prev, hidden: true } : prev))
+    if (!isJobInProgress(activeJob)) {
+      setUi(prev => ({ ...prev, isProcessing: false }))
+    }
+  }
+
+  const handleViewJobContent = (contentId) => {
+    if (!contentId) return
+    handleSelectContent(contentId)
+    setActiveJob(null)
+  }
+
+  const handleRetryJob = () => {
+    if (!lastUploadEntriesRef.current.length) return
+    const retryFormData = buildFormDataFromEntries(lastUploadEntriesRef.current)
+    handleUpload(retryFormData)
   }
 
   /**
@@ -362,12 +387,11 @@ function DashboardLayout() {
       inputType: null,
       normalizedTextStatus: null
     })
-    setUi({
+    setUi(prev => ({
+      ...prev,
       activeAction: null,
-      isProcessing: false,
-      sidebarOpen: ui.sidebarOpen, // Preserve sidebar state
-      processingStep: 0
-    })
+      isProcessing: isJobInProgress(activeJob),
+    }))
     setResult({
       data: null,
       action: null
@@ -392,7 +416,7 @@ function DashboardLayout() {
     setUi(prev => ({
       ...prev,
       activeAction: null, // Always clear active action when switching content
-      isProcessing: false
+      isProcessing: isJobInProgress(activeJob)
     }))
     setResult({
       data: null,
@@ -437,6 +461,8 @@ function DashboardLayout() {
    * Logout user
    */
   const handleLogout = () => {
+    clearJobPolling()
+    setActiveJob(null)
     localStorage.removeItem('token')
     window.dispatchEvent(new Event('auth-changed'))
   }
@@ -566,6 +592,7 @@ function DashboardLayout() {
       {ui.sidebarOpen && (
         <Sidebar
           history={history.pastSessions}
+          activeJob={activeJob}
           activeContentId={content.contentId}
           onNewSession={handleNewSession}
           onSelectContent={handleSelectContent}
@@ -573,6 +600,9 @@ function DashboardLayout() {
           onClose={() => setUi(prev => ({ ...prev, sidebarOpen: false }))}
           onDeleteContent={handleDeleteContent}
           onRefreshHistory={fetchHistory}
+          onDismissJob={handleDismissJob}
+          onRetryJob={handleRetryJob}
+          onViewJob={handleViewJobContent}
         />
       )}
 
@@ -675,14 +705,6 @@ function DashboardLayout() {
                   />
                 )}
               </div>
-            ) : ui.isProcessing ? (
-              /* Upload Processing */
-              <ProcessingStatus
-                stage={ui.processingStage}
-                message={ui.processingMessage}
-                percentage={ui.processingPercentage}
-                inputType={ui.processingInputType}
-              />
             ) : (
               /* Initial Upload Screen */
               <div>
@@ -701,11 +723,18 @@ function DashboardLayout() {
                   </div>
                 )}
 
-                <InputSelector onSubmit={handleUpload} loading={ui.isProcessing} />
+                <InputSelector onSubmit={handleUpload} loading={ui.isProcessing || isJobInProgress(activeJob)} />
               </div>
             )}
           </div>
         </main>
+
+        <JobStatusCard
+          job={activeJob}
+          onView={handleViewJobContent}
+          onDismiss={handleDismissJob}
+          onRetry={handleRetryJob}
+        />
       </div>
     </div>
   )

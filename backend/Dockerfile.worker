@@ -1,0 +1,27 @@
+# EduGen Worker Service Dockerfile
+# Same base as the API — shares all dependencies.
+# Only the CMD differs: runs the SQS polling worker instead of uvicorn.
+
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# DocumentDB TLS certificate (same as API — both connect to the same DocumentDB cluster)
+RUN mkdir -p /app/certs && \
+    curl -s "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem" \
+    -o /app/certs/global-bundle.pem
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN mkdir -p /app/temp
+
+# Worker entrypoint — SQS long-polling loop (no HTTP server)
+CMD ["python", "-m", "app.worker.main"]

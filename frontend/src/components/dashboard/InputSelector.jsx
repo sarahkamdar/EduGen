@@ -1,4 +1,6 @@
-﻿import React, { useState } from 'react'
+import React, { useState } from 'react'
+
+const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024
 
 function InputSelector({ onSubmit, loading }) {
   const [activeTab, setActiveTab] = useState('files')
@@ -77,6 +79,12 @@ function InputSelector({ onSubmit, loading }) {
     
     const validExtensions = ['.pdf', '.doc', '.docx', '.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv']
     const fileExtension = '.' + file.name.split('.').pop().toLowerCase()
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setSelectedFile(null)
+      setError('File size must be 500MB or smaller.')
+      return
+    }
     
     if (validTypes.includes(file.type) || validExtensions.includes(fileExtension)) {
       setSelectedFile(file)
@@ -129,6 +137,11 @@ function InputSelector({ onSubmit, loading }) {
       formData.append('file', selectedFile)
     }
 
+    // Reset inputs right after submitting to prevent double submits
+    setTextInput('')
+    setUrlInput('')
+    setSelectedFile(null)
+
     await onSubmit(formData)
   }
 
@@ -141,8 +154,11 @@ function InputSelector({ onSubmit, loading }) {
           return (
             <button
               key={tab.id}
+              disabled={loading}
               onClick={() => handleTabChange(tab.id)}
               className={`flex-1 py-2 px-4 rounded-[6px] text-sm font-medium transition-all flex items-center justify-center gap-1.5 border ${
+                loading ? 'opacity-50 cursor-not-allowed' : ''
+              } ${
                 isActive
                   ? 'bg-white shadow-sm'
                   : 'border-transparent text-[#6B7280] hover:text-[#374151] hover:bg-white'

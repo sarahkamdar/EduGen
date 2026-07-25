@@ -18,6 +18,15 @@ def upload_file_to_s3(file_path: str, bucket: str, key: str) -> str:
     return f"s3://{bucket}/{key}"
 
 
+def delete_file_from_s3(bucket: str, key: str) -> bool:
+    s3 = get_s3_client()
+    try:
+        s3.delete_object(Bucket=bucket, Key=key)
+        return True
+    except ClientError:
+        return False
+
+
 def generate_presigned_url(bucket: str, key: str, expires_in: int = 3600) -> str | None:
     s3 = get_s3_client()
     try:

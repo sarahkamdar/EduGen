@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, List
 from datetime import datetime
 from bson import ObjectId
 from app.database.connection import get_database
@@ -9,6 +9,8 @@ class ContentCreate(BaseModel):
     input_type: str
     normalized_text: str
     title: Optional[str] = None
+    chunks: Optional[List[str]] = None
+    chunk_metadata: Optional[Dict] = None
 
 class GeneratedOutputCreate(BaseModel):
     user_id: str
@@ -26,6 +28,8 @@ def create_content(content_data: ContentCreate) -> str:
         "input_type": content_data.input_type,
         "normalized_text": content_data.normalized_text,
         "title": content_data.title,
+        "chunks": content_data.chunks,
+        "chunk_metadata": content_data.chunk_metadata,
         "created_at": datetime.utcnow()
     }
     

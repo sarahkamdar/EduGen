@@ -1,55 +1,33 @@
-from groq import Groq
+"""
+quiz.py — Quiz generation service.
+
+Supports pre-stored chunks (MongoDB content['chunks']) and raw normalized_text fallback.
+"""
+
 import os
 import json
-import re
+from typing import List, Optional
+from groq import Groq
 from dotenv import load_dotenv
+
+from app.services.chunker import get_chunks_for_feature
 
 load_dotenv()
 
-def chunk_text(text: str, max_chars: int = 1000) -> list:
-    """Split text into smaller chunks by sentences."""
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-    chunks = []
-    current = ""
-    
-    for sentence in sentences:
-        if len(current) + len(sentence) > max_chars and current:
-            chunks.append(current.strip())
-            current = sentence
-        else:
-            current += " " + sentence if current else sentence
-    
-    if current:
-        chunks.append(current.strip())
-    return chunks
-
-def get_quiz_prompt(normalized_text: str, num_questions: int, difficulty_level: str, quiz_mode: str) -> str:
-    """Generate the quiz prompt for a chunk."""
-    # Always generate explanations regardless of mode
-    
-    return f"""Create EXACTLY {num_questions} MCQs. Difficulty: {difficulty_level}.
-
-{normalized_text}
-
-Add a brief, clear explanation for each correct answer. Return ONLY JSON:
-{{"quiz": [{{"id": 1, "question": "...", "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}}, "correct_answer": "A", "explanation": "..."}}]}}"""
 
 def clean_json_response(text: str) -> str:
-    """Extract JSON from markdown code blocks."""
+    """Extract JSON object from markdown code blocks."""
     text = text.strip()
-    
+
     if text.startswith('```'):
         first_newline = text.find('\n')
-        if first_newline != -1:
-            text = text[first_newline + 1:]
-        else:
-            text = text[3:]
-    
+        text = text[first_newline + 1:] if first_newline != -1 else text[3:]
+
     if text.endswith('```'):
         text = text[:-3]
-    
+
     text = text.strip()
-    
+
     if '{' in text and '}' in text:
         start = text.find('{')
         brace_count = 0
@@ -62,102 +40,86 @@ def clean_json_response(text: str) -> str:
                 if brace_count == 0:
                     end = i + 1
                     break
-        
         if end != -1:
             text = text[start:end]
-    
+
     return text
 
+
 def generate_quiz(
-    normalized_text: str,
+    text_input: Optional[str] = None,
     max_questions: int = 10,
     difficulty_level: str = "Medium",
-    quiz_mode: str = "Practice"
+    quiz_mode: str = "Practice",
+    stored_chunks: Optional[List[str]] = None,
+    normalized_text: Optional[str] = None,
 ) -> dict:
-    """Generate EXACTLY the requested number of quiz questions."""
+    """
+    Generate MCQ quiz questions from stored_chunks or raw text.
+
+    Args:
+        text_input: Positional fallback parameter.
+        max_questions: Total questions requested.
+        difficulty_level: Easy | Medium | Hard
+        quiz_mode: Practice | Exam
+        stored_chunks: Pre-computed chunks list from MongoDB.
+        normalized_text: Raw text fallback.
+    """
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise ValueError("GROQ_API_KEY not set")
-    
+
     client = Groq(api_key=api_key)
-    
-    # For 5 or fewer questions, use single chunk
-    if max_questions <= 5 or len(normalized_text) <= 1500:
-        prompt = get_quiz_prompt(normalized_text[:1500], max_questions, difficulty_level, quiz_mode)
-        
-        try:
-            response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": "You output only raw JSON. No preamble, no explanation, no markdown, no text before or after the JSON object."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=600
-            )
-            
-            cleaned = clean_json_response(response.choices[0].message.content)
-            quiz_data = json.loads(cleaned)
-            questions = quiz_data.get('quiz', [])
-            
-            # Ensure exact count
-            questions = questions[:max_questions]
-            for i, q in enumerate(questions, 1):
-                q['id'] = i
-            
-            return {"quiz": questions}
-        except Exception as e:
-            return {"quiz": [], "error": str(e)}
-    
-    # For more questions, split across chunks
-    chunks = chunk_text(normalized_text, max_chars=1200)
-    questions_per_chunk = max(2, max_questions // min(len(chunks), 3))
-    chunks_to_use = min(len(chunks), 3)
-    
-    all_questions = []
-    
+
+    content_raw = text_input or normalized_text or ""
+    if stored_chunks and isinstance(stored_chunks, list) and len(stored_chunks) > 0:
+        chunks = stored_chunks
+    elif content_raw:
+        chunks = get_chunks_for_feature(content_raw, "quiz")
+    else:
+        return {"quiz": [], "error": "No content available"}
+
+    chunks_to_use = min(len(chunks), 4)
+    questions_per_chunk = max(2, max_questions // chunks_to_use)
+
+    all_questions: List[dict] = []
+
     for i in range(chunks_to_use):
         if len(all_questions) >= max_questions:
             break
-            
+
         needed = max_questions - len(all_questions)
         num = min(questions_per_chunk, needed)
-        
-        prompt = get_quiz_prompt(chunks[i], num, difficulty_level, quiz_mode)
-        
+
+        prompt = f"""Create EXACTLY {num} MCQs. Difficulty: {difficulty_level}.
+
+{chunks[i]}
+
+Add a brief, clear explanation for each correct answer. Return ONLY JSON:
+{{"quiz": [{{"id": 1, "question": "...", "options": {{"A": "...", "B": "...", "C": "...", "D": "..."}}, "correct_answer": "A", "explanation": "..."}}]}}"""
+
         try:
             response = client.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=[
-                    {"role": "system", "content": "You output only raw JSON. No preamble, no explanation, no markdown, no text before or after the JSON object."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": "You output only raw JSON. No preamble, no explanation, no markdown."},
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=600
+                max_tokens=600,
             )
-            
-            result_text = response.choices[0].message.content
-            
-            if result_text and result_text.strip():
-                cleaned_text = clean_json_response(result_text)
-                
-                try:
-                    chunk_quiz = json.loads(cleaned_text)
-                    questions = chunk_quiz.get('quiz', [])
-                    all_questions.extend(questions[:num])
-                        
-                except json.JSONDecodeError:
-                    continue
-                    
-        except Exception as e:
-            print(f"Chunk {i} error: {e}")
+            raw = response.choices[0].message.content
+            if raw and raw.strip():
+                cleaned = clean_json_response(raw)
+                chunk_data = json.loads(cleaned)
+                questions = chunk_data.get("quiz", [])
+                all_questions.extend(questions[:num])
+        except Exception as exc:
+            print(f"[QUIZ] Chunk {i} error: {exc}")
             continue
-    
-    # Ensure exact count and renumber
+
     all_questions = all_questions[:max_questions]
-    for i, q in enumerate(all_questions, 1):
-        q['id'] = i
-    
+    for idx, q in enumerate(all_questions, 1):
+        q["id"] = idx
+
     return {"quiz": all_questions}
-
-

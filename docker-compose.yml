@@ -1,13 +1,14 @@
 services:
+  # ─── API Service ─────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: edugen-backend
+    env_file: ./backend/.env
     ports:
       - "8000:8000"
     volumes:
-      - whisper_cache:/app/model-cache
       - ./backend/temp:/app/temp
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
@@ -16,12 +17,32 @@ services:
       retries: 3
       start_period: 40s
 
+  # ─── Worker Service ────────────────────────────────────────────────────────
+  # Runs the SQS polling loop. Separate container, same code, different CMD.
+  # In production: separate ECS service (edugen-worker-service).
+  # In local dev: uses LocalStack SQS or disabled (set SQS_QUEUE_URL=disabled).
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    container_name: edugen-worker
+    env_file: ./backend/.env
+    volumes:
+      - ./backend/temp:/app/temp
+    depends_on:
+      backend:
+        condition: service_healthy
+    # Worker has no health check — it doesn't expose an HTTP port.
+    # In production, CloudWatch alarms on SQS queue depth indicate worker health.
+    restart: on-failure
+
+  # ─── Frontend ──────────────────────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ""
+        VITE_API_BASE_URL: ""   # empty = relative URLs, proxied by nginx to backend
     container_name: edugen-frontend
     depends_on:
       backend:

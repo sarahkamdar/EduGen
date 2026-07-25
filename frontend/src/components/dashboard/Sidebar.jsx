@@ -2,7 +2,7 @@
 import SourceContentViewer from './SourceContentViewer'
 import Logo from '../common/Logo'
 
-function Sidebar({ history, activeContentId, onNewSession, onSelectContent, loading, onClose, onDeleteContent, onRefreshHistory }) {
+function Sidebar({ history, activeJob, activeContentId, onNewSession, onSelectContent, loading, onClose, onDeleteContent, onRefreshHistory, onDismissJob, onRetryJob, onViewJob }) {
   const [editingId, setEditingId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
   const [viewingContentId, setViewingContentId] = useState(null)
@@ -25,6 +25,10 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, load
   const getInputTypeColor = (inputType) => {
     return 'bg-[#EEF2FF] text-[#1E3A8A] border border-[#C7D2FE]'
   }
+
+  const isJobInProgress = activeJob && !activeJob.hidden && (activeJob.status === 'pending' || activeJob.status === 'processing')
+  const isJobFailed = activeJob && !activeJob.hidden && activeJob.status === 'failed'
+  const isJobComplete = activeJob && !activeJob.hidden && activeJob.status === 'complete'
 
   const getInputTypeIcon = (inputType) => {
     switch (inputType) {
@@ -148,6 +152,91 @@ function Sidebar({ history, activeContentId, onNewSession, onSelectContent, load
           <span>New Session</span>
         </button>
       </div>
+
+      {activeJob && !activeJob.hidden && (
+        <div className="px-3 pb-2">
+          <div className={`rounded-[10px] border bg-white p-3 shadow-sm ${
+            isJobComplete ? 'border-[#BBF7D0]' : isJobFailed ? 'border-[#FECACA]' : 'border-[#C7D2FE]'
+          }`}>
+            <div className="flex items-start gap-2">
+              <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-full ${
+                isJobComplete ? 'bg-[#DCFCE7] text-[#16A34A]' : isJobFailed ? 'bg-[#FEE2E2] text-[#DC2626]' : 'bg-[#EEF2FF] text-[#1E3A8A]'
+              }`}>
+                {isJobComplete ? (
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : isJobFailed ? (
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-semibold text-[#111827]">
+                    {activeJob.title || 'Processing content'}
+                  </p>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                    isJobComplete ? 'bg-[#F0FDF4] text-[#166534]' : isJobFailed ? 'bg-[#FEF2F2] text-[#991B1B]' : 'bg-[#EEF2FF] text-[#1E3A8A]'
+                  }`}>
+                    {activeJob.status}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-[#6B7280]">
+                  {activeJob.message || activeJob.progress_message || 'Working in the background'}
+                </p>
+
+                {(isJobInProgress || isJobFailed) && (
+                  <div className="mt-2">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[#F3F4F6]">
+                      <div
+                        className={`h-full rounded-full ${isJobFailed ? 'bg-[#DC2626]' : 'bg-[#1E3A8A]'} transition-all duration-300`}
+                        style={{ width: `${Math.max(0, Math.min(100, activeJob.progress || 0))}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-[#6B7280]">
+                      <span>{isJobFailed ? 'Failed' : 'Processing'}</span>
+                      <span>{Math.max(0, Math.min(100, activeJob.progress || 0))}%</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-3 flex gap-2">
+                  {isJobComplete && activeJob.contentId ? (
+                    <button
+                      onClick={() => onViewJob && onViewJob(activeJob.contentId)}
+                      className="flex-1 rounded-[8px] bg-[#16A34A] px-3 py-2 text-xs font-semibold text-white hover:bg-[#15803D] transition-colors"
+                    >
+                      View Content
+                    </button>
+                  ) : null}
+
+                  {isJobFailed ? (
+                    <button
+                      onClick={onRetryJob}
+                      className="flex-1 rounded-[8px] bg-[#1E3A8A] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1C337A] transition-colors"
+                    >
+                      Retry
+                    </button>
+                  ) : null}
+
+                  <button
+                    onClick={onDismissJob}
+                    className="rounded-[8px] border border-[#E5E7EB] px-3 py-2 text-xs font-semibold text-[#374151] hover:bg-[#F9FAFB] transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* History List */}
       <div className="flex-1 overflow-y-auto p-3">

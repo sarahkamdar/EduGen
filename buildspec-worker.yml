@@ -1,0 +1,47 @@
+version: 0.2
+
+# buildspec-worker.yml — CodeBuild spec for edugen-worker Docker image
+# Identical to buildspec-api.yml except it uses Dockerfile.worker and a different ECR repo.
+
+env:
+  variables:
+    ECR_REPO_NAME: edugen-worker
+    DOCKERFILE:    Dockerfile.worker
+  parameter-store:
+    AWS_ACCOUNT_ID: /edugen/aws-account-id
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION |
+          docker login --username AWS --password-stdin
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - ECR_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME
+      - echo "ECR URI= $ECR_URI"
+
+  build:
+    commands:
+      - echo "Building Worker Docker image..."
+      - docker build
+          -f backend/$DOCKERFILE
+          -t $ECR_URI:$IMAGE_TAG
+          -t $ECR_URI:latest
+          ./backend
+      - echo "Build complete."
+
+  post_build:
+    commands:
+      - echo "Pushing Worker image to ECR..."
+      - docker push $ECR_URI:$IMAGE_TAG
+      - docker push $ECR_URI:latest
+      - echo "Push complete."
+      - printf '[{"name":"edugen-worker","imageUri":"%s"}]' $ECR_URI:$IMAGE_TAG > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+
+cache:
+  paths:
+    - /root/.docker/**/*

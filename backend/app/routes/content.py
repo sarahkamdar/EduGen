@@ -1,10 +1,11 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form, Request
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from typing import Optional
+from pathlib import Path
 from bson import ObjectId
+import shutil
 import json
 import asyncio
-import requests as _requests
 from app.auth.dependencies import get_current_user
 from app.database.connection import get_database
 from app.models.content import (
@@ -18,7 +19,13 @@ from app.models.content import (
     update_generated_output,
     get_or_create_chatbot_output
 )
+from app.models.job import (
+    JobCreate,
+    create_job,
+    get_job_by_id,
+)
 from app.services.content_processor import process_content, process_content_with_progress
+from app.services.chunker import get_chunks_for_feature
 from app.services.summary import generate_summary
 from app.services.flashcards import generate_flashcards as create_flashcards
 from app.services.quiz import generate_quiz as create_quiz
@@ -26,22 +33,168 @@ from app.services.quiz_evaluator import evaluate_quiz
 from app.services.chatbot import chat_with_content as chatbot_service
 from app.services.ppt import generate_presentation
 from app.models.quiz_attempt import QuizEvaluationRequest, QuizAttemptCreate, create_quiz_attempt
+from app.services.content_metadata import build_content_chunk_data, build_content_title
 
-def _get_youtube_title(youtube_url: str) -> str:
-    """Fetch the real video title from YouTube oEmbed API."""
+
+
+async def _process_async_upload(
+    job_id: str,
+    user_id: str,
+    file: Optional[UploadFile] = None,
+    youtube_url: Optional[str] = None,
+    text: Optional[str] = None,
+    temp_path: Optional[str] = None,
+) -> None:
+    from app.models.job import (
+        STATUS_COMPLETE,
+        STATUS_FAILED,
+        STATUS_PROCESSING,
+        update_job_status,
+    )
+
+    async def progress_callback(stage: str, message: str, percentage: int):
+        update_job_status(job_id, STATUS_PROCESSING, percentage, message)
+
     try:
-        resp = _requests.get(
-            "https://www.youtube.com/oembed",
-            params={"url": youtube_url, "format": "json"},
-            timeout=5
+        update_job_status(job_id, STATUS_PROCESSING, 5, "Starting content processing...")
+
+        input_type, normalized_text = await process_content_with_progress(
+            file,
+            youtube_url,
+            text,
+            progress_callback,
         )
-        if resp.status_code == 200:
-            return resp.json().get("title", "YouTube Video")
-    except Exception:
-        pass
-    return "YouTube Video"
+
+        title = build_content_title(
+            file_name=file.filename if file and hasattr(file, "filename") else None,
+            youtube_url=youtube_url,
+            text=text,
+            input_type=input_type,
+        )
+
+        chunks, chunk_metadata = build_content_chunk_data(normalized_text)
+
+        content_data = ContentCreate(
+            user_id=user_id,
+            input_type=input_type,
+            normalized_text=normalized_text,
+            title=title,
+            chunks=chunks,
+            chunk_metadata=chunk_metadata,
+        )
+
+        content_id = create_content(content_data)
+        update_job_status(
+            job_id,
+            STATUS_COMPLETE,
+            100,
+            "Content processed successfully!",
+            content_id=content_id,
+        )
+    except Exception as exc:
+        update_job_status(
+            job_id,
+            STATUS_FAILED,
+            0,
+            f"Processing failed: {str(exc)}",
+            error_message=str(exc),
+        )
+    finally:
+        if temp_path:
+            temp_file = Path(temp_path)
+            if temp_file.exists():
+                try:
+                    temp_file.unlink()
+                except OSError:
+                    pass
+
+
+class _StoredUploadFile:
+    def __init__(self, filename: str, file_path: str):
+        self.filename = filename
+        self._file_path = Path(file_path)
+
+    async def read(self):
+        return self._file_path.read_bytes()
 
 router = APIRouter(prefix="/content", tags=["Content"])
+
+
+@router.post("/upload-async")
+async def upload_content_async(
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+    file: Optional[UploadFile] = File(None),
+    youtube_url: Optional[str] = Form(None),
+    text: Optional[str] = Form(None)
+):
+    input_count = sum([file is not None, youtube_url is not None, text is not None])
+    if input_count == 0:
+        raise HTTPException(status_code=400, detail="No input provided")
+    if input_count > 1:
+        raise HTTPException(status_code=400, detail="Only one input type allowed")
+
+    if file and file.filename:
+        title = build_content_title(file_name=file.filename)
+        input_type = "file"
+    elif youtube_url:
+        title = build_content_title(youtube_url=youtube_url)
+        input_type = "youtube"
+    else:
+        title = build_content_title(text=text, input_type="text")
+        input_type = "text"
+
+    job_id = create_job(JobCreate(user_id=current_user["user_id"], input_type=input_type, title=title))
+
+    temp_path = None
+    upload_file = file
+    if file and file.filename:
+        temp_dir = Path("temp")
+        temp_dir.mkdir(exist_ok=True)
+        safe_name = Path(file.filename).name
+        temp_path = str(temp_dir / f"{job_id}_{safe_name}")
+        with open(temp_path, "wb") as destination:
+            shutil.copyfileobj(file.file, destination)
+        await file.close()
+        upload_file = _StoredUploadFile(safe_name, temp_path)
+
+    background_tasks.add_task(
+        _process_async_upload,
+        job_id,
+        current_user["user_id"],
+        upload_file,
+        youtube_url,
+        text,
+        temp_path,
+    )
+
+    return {
+        "job_id": job_id,
+        "input_type": input_type,
+        "status": "pending",
+        "title": title,
+    }
+
+
+@router.get("/jobs/{job_id}")
+async def get_job_status(job_id: str, current_user: dict = Depends(get_current_user)):
+    job = get_job_by_id(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job.get("user_id") != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    return {
+        "job_id": str(job["_id"]),
+        "status": job.get("status", "pending"),
+        "progress": job.get("progress", 0),
+        "progress_message": job.get("progress_message", ""),
+        "content_id": job.get("content_id"),
+        "title": job.get("title"),
+        "error_message": job.get("error_message"),
+        "input_type": job.get("input_type"),
+    }
 
 @router.post("/upload")
 async def upload_content(
@@ -54,22 +207,22 @@ async def upload_content(
         input_type, normalized_text = await process_content(file, youtube_url, text)
         
         # Generate meaningful title
-        title = None
-        if file:
-            title = file.filename.rsplit('.', 1)[0][:100] if file.filename else f"{input_type.capitalize()} Document"
-        elif youtube_url:
-            title = _get_youtube_title(youtube_url)
-        elif text:
-            title = text[:50].strip() + ("..." if len(text) > 50 else "")
+        title = build_content_title(
+            file_name=file.filename if file and file.filename else None,
+            youtube_url=youtube_url,
+            text=text,
+            input_type=input_type,
+        )
 
-        if not title:
-            title = f"{input_type.capitalize()} Content"
+        chunks, chunk_metadata = build_content_chunk_data(normalized_text)
 
         content_data = ContentCreate(
             user_id=current_user["user_id"],
             input_type=input_type,
             normalized_text=normalized_text,
-            title=title
+            title=title,
+            chunks=chunks,
+            chunk_metadata=chunk_metadata
         )
         
         content_id = create_content(content_data)
@@ -134,23 +287,23 @@ async def upload_content_stream(
             )
             
             # Generate title
-            title = None
-            if file:
-                title = file.filename.rsplit('.', 1)[0][:100] if hasattr(file, 'filename') and file.filename else f"{input_type.capitalize()} Document"
-            elif youtube_url:
-                title = _get_youtube_title(youtube_url)
-            elif text:
-                title = text[:50].strip() + ("..." if len(text) > 50 else "")
+            title = build_content_title(
+                file_name=file.filename if file and hasattr(file, "filename") and file.filename else None,
+                youtube_url=youtube_url,
+                text=text,
+                input_type=input_type,
+            )
 
-            if not title:
-                title = f"{input_type.capitalize()} Content"
+            chunks, chunk_metadata = build_content_chunk_data(normalized_text)
             
             # Save to database
             content_data = ContentCreate(
                 user_id=current_user["user_id"],
                 input_type=input_type,
                 normalized_text=normalized_text,
-                title=title
+                title=title,
+                chunks=chunks,
+                chunk_metadata=chunk_metadata
             )
             
             content_id = create_content(content_data)
@@ -238,7 +391,12 @@ async def generate_content_summary(
         }
         
         prompt_suffix = summary_prompts.get(summary_type, summary_prompts["detailed"])
-        summary = generate_summary(content["normalized_text"], prompt_suffix)
+        stored_chunks = content.get('chunks') or []
+        summary = generate_summary(
+            prompt_suffix=prompt_suffix,
+            stored_chunks=stored_chunks if stored_chunks else None,
+            normalized_text=content['normalized_text'] if not stored_chunks else None,
+        )
         
         output_data = GeneratedOutputCreate(
             user_id=current_user["user_id"],
@@ -277,7 +435,13 @@ async def generate_flashcards_endpoint(
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
-        flashcards = create_flashcards(content['normalized_text'], flashcard_type, number_of_cards)
+        stored_chunks = content.get('chunks') or []
+        flashcards = create_flashcards(
+            flashcard_type=flashcard_type,
+            num_cards=number_of_cards,
+            stored_chunks=stored_chunks if stored_chunks else None,
+            normalized_text=content['normalized_text'] if not stored_chunks else None,
+        )
         
         output_data = GeneratedOutputCreate(
             user_id=current_user["user_id"],
@@ -316,11 +480,13 @@ async def generate_quiz_endpoint(
         if content["user_id"] != current_user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
+        stored_chunks = content.get('chunks') or []
         quiz_data = create_quiz(
-            content['normalized_text'],
             max_questions=number_of_questions,
             difficulty_level=difficulty,
-            quiz_mode=mode
+            quiz_mode=mode,
+            stored_chunks=stored_chunks if stored_chunks else None,
+            normalized_text=content['normalized_text'] if not stored_chunks else None,
         )
         
         output_data = GeneratedOutputCreate(
@@ -393,11 +559,13 @@ async def chat_with_content_endpoint(
                 history = []
                 frontend_messages = []
         
-        # Get AI response
+        # Use stored chunks if available (new content), fall back to raw text for old content
+        stored_chunks = content.get('chunks') or []
         answer = chatbot_service(
-            normalized_text=content['normalized_text'],
             question=question,
-            chat_history=history
+            chat_history=history,
+            stored_chunks=stored_chunks if stored_chunks else None,
+            normalized_text=content['normalized_text'] if not stored_chunks else None,
         )
         
         # Get or create chatbot conversation for this content
