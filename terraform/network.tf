@@ -167,6 +167,59 @@ resource "aws_cloudfront_distribution" "frontend" {
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
   }
 
+  # ALB Backend Origin (proxies /auth/* and /content/* over HTTPS)
+  origin {
+    domain_name = aws_lb.main.dns_name
+    origin_id   = "ALB-backend"
+
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"   # ALB listens on HTTP port 80
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+  }
+
+  # Cache Behavior for /auth/* -> Forward to ALB backend
+  ordered_cache_behavior {
+    path_pattern     = "/auth/*"
+    target_origin_id = "ALB-backend"
+
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      headers      = ["Authorization", "Host", "Accept", "Content-Type"]
+      cookies { forward = "all" }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 0
+    max_ttl                = 0
+  }
+
+  # Cache Behavior for /content/* -> Forward to ALB backend
+  ordered_cache_behavior {
+    path_pattern     = "/content/*"
+    target_origin_id = "ALB-backend"
+
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      headers      = ["Authorization", "Host", "Accept", "Content-Type"]
+      cookies { forward = "all" }
+    }
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 0
+    max_ttl                = 0
+  }
+
   default_cache_behavior {
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
